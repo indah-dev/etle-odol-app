@@ -111,14 +111,14 @@ st.markdown("""
     [data-testid="stFileUploader"] button:hover { background-color: #e67e22 !important; color: #ffffff !important; }
 
     /* KARTU TOKOH & PROFIL */
-    .tokoh-card { background-color: #ffffff; padding: 20px; border-radius: 10px; border-left: 5px solid #f39c12; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 15px; }
+    .tokoh-card { background-color: #ffffff; padding: 20px; border-radius: 10px; border-left: 5px solid #f39c12; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 15px; height: 100%; display: flex; flex-direction: column; justify-content: center; }
     .tokoh-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
     .tokoh-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 2px solid #f39c12; }
     .tokoh-name { font-weight: bold; color: #002147; font-size: 14px; line-height: 1.3; }
     .tokoh-title { font-size: 11px; color: #666; margin-top: 2px; }
     .tokoh-quote { font-size: 12px; color: #444; font-style: italic; line-height: 1.4; }
 
-    .news-card { background-color: #ffffff; padding: 20px; border-radius: 8px; border-left: 5px solid #f39c12; box-shadow: 0 4px 12px rgba(0,0,0,0.06); margin-bottom: 15px; }
+    .news-card { background-color: #ffffff; padding: 20px; border-radius: 8px; border-left: 5px solid #f39c12; box-shadow: 0 4px 12px rgba(0,0,0,0.06); margin-bottom: 15px; height: 100%; }
     .news-title { color: #002147; font-weight: bold; font-size: 15px; margin-bottom: 8px; }
     .news-excerpt { color: #666666; font-size: 13px; margin-bottom: 12px; }
 
@@ -200,17 +200,20 @@ if st.session_state.current_selected_menu == "Beranda":
         </div>
     """, unsafe_allow_html=True)
 
+    # PERBAIKAN CSS COUNTER: Agar pas di HP dan jejer rapi 4 kolom di Laptop
     regulation_counter_html = """
     <style>
-        body { margin: 0; padding: 0; background-color: #f4f6f9; } 
-        .counter-wrapper { display: flex; flex-wrap: wrap; justify-content: space-around; background: #ffffff; padding: 20px 10px; font-family: sans-serif; color: #333; box-shadow: 0 4px 6px rgba(0,0,0,0.02); } 
-        .counter-box { text-align: center; border: 1px solid #e0e0e0; background-color: #ffffff; padding: 15px 5px; width: 45%; margin-bottom: 10px; border-radius: 8px; } 
+        body { margin: 0; padding: 0; background-color: #f4f6f9; box-sizing: border-box; } 
+        *, *:before, *:after { box-sizing: inherit; }
+        .counter-wrapper { display: flex; flex-wrap: wrap; justify-content: space-between; background: #ffffff; padding: 15px; font-family: sans-serif; box-shadow: 0 4px 6px rgba(0,0,0,0.02); } 
+        .counter-box { text-align: center; border: 1px solid #e0e0e0; background-color: #ffffff; padding: 15px 5px; width: 48%; margin-bottom: 15px; border-radius: 8px; } 
         .counter-box h3 { font-size: 24px; color: #f39c12; margin: 0 0 5px 0; font-weight: 800; } 
         .counter-box p { font-size: 10px; margin: 0; font-weight: bold; text-transform: uppercase; color: #002147; line-height: 1.3; }
         @media(min-width: 768px) {
-            .counter-box { width: 23%; padding: 25px 15px; }
-            .counter-box h3 { font-size: 38px; }
-            .counter-box p { font-size: 12px; }
+            .counter-wrapper { flex-wrap: nowrap; gap: 15px; padding: 25px; }
+            .counter-box { width: 100%; margin-bottom: 0; padding: 25px 15px; }
+            .counter-box h3 { font-size: 32px; }
+            .counter-box p { font-size: 11px; }
         }
     </style>
     <div class="counter-wrapper">
@@ -247,10 +250,12 @@ if st.session_state.current_selected_menu == "Beranda":
         });
     </script>
     """
-    components.html(regulation_counter_html, height=180)
+    components.html(regulation_counter_html, height=220)
 
     st.write("<br>", unsafe_allow_html=True)
-    c_l, c_mid, c_r = st.columns([0.1, 2.8, 0.1])
+    
+    # PERBAIKAN GRAFIK: Di laptop marginnya ada di kiri-kanan, di HP otomatis penuh
+    c_l, c_mid, c_r = st.columns([1, 4, 1])
     with c_mid:
         st.markdown("<h3 style='text-align:center; color:#002147; font-size:20px; padding:0 10px;'>Presentase Kecelakaan Berdasarkan Jenis Kendaraan</h3>", unsafe_allow_html=True)
         kategori = ['Barang (ODOL)', 'Angkutan Orang', 'Mobil', 'Listrik']
@@ -264,43 +269,38 @@ if st.session_state.current_selected_menu == "Beranda":
     st.divider()
     st.markdown("<h3 style='text-align:center; color:#002147; font-size:20px; padding:0 10px;'>Pandangan & Komitmen Penegakan Hukum</h3><br>", unsafe_allow_html=True)
     
-    # KODE YANG DI-FIX: Menggunakan st.columns(2) agar rapi di desktop dan otomatis menumpuk di HP
     col_t1, col_t2 = st.columns(2)
     with col_t1:
         st.markdown(f'''
-            <div style="padding: 0 5px;">
-                <div class="tokoh-card">
-                    <div class="tokoh-header"><img src="data:image/jpeg;base64,{tokoh1_b64}" class="tokoh-img"><div><div class="tokoh-name">Irjen Pol. Wibowo, S.I.K., M.Hum.</div><div class="tokoh-title">Kakorlantas Polri</div></div></div>
-                    <div class="tokoh-quote">"Penegakan hukum berbasis teknologi seperti E-TLE adalah kunci memastikan penindakan pelanggaran berpotensi fatalitas tinggi berjalan transparan."</div>
-                </div>
-                <div class="tokoh-card">
-                    <div class="tokoh-header"><img src="data:image/jpeg;base64,{tokoh2_b64}" class="tokoh-img"><div><div class="tokoh-name">Dudy Purwagandhi, S.H.</div><div class="tokoh-title">Menteri Perhubungan RI</div></div></div>
-                    <div class="tokoh-quote">"Pelanggaran dimensi dan muatan berlebih (ODOL) sangat membahayakan nyawa dan membebani anggaran negara akibat kerusakan infrastruktur."</div>
-                </div>
+            <div class="tokoh-card">
+                <div class="tokoh-header"><img src="data:image/jpeg;base64,{tokoh1_b64}" class="tokoh-img"><div><div class="tokoh-name">Irjen Pol. Wibowo, S.I.K., M.Hum.</div><div class="tokoh-title">Kakorlantas Polri</div></div></div>
+                <div class="tokoh-quote">"Penegakan hukum berbasis teknologi seperti E-TLE adalah kunci memastikan penindakan pelanggaran berpotensi fatalitas tinggi berjalan transparan."</div>
+            </div>
+            <div class="tokoh-card">
+                <div class="tokoh-header"><img src="data:image/jpeg;base64,{tokoh2_b64}" class="tokoh-img"><div><div class="tokoh-name">Dudy Purwagandhi, S.H.</div><div class="tokoh-title">Menteri Perhubungan RI</div></div></div>
+                <div class="tokoh-quote">"Pelanggaran dimensi dan muatan berlebih (ODOL) sangat membahayakan nyawa dan membebani anggaran negara akibat kerusakan infrastruktur."</div>
             </div>
         ''', unsafe_allow_html=True)
     with col_t2:
         st.markdown(f'''
-            <div style="padding: 0 5px;">
-                <div class="tokoh-card">
-                    <div class="tokoh-header"><img src="data:image/png;base64,{tokoh3_b64}" class="tokoh-img"><div><div class="tokoh-name">KOMBESPOL ARIE PRASETYA SYAF'AT, S.I.K.</div><div class="tokoh-title">Dirlantas Polda D.I. Yogyakarta</div></div></div>
-                    <div class="tokoh-quote">"Kesadaran dan budaya tertib berlalu lintas harus menjadi fondasi utama. Pemanfaatan teknologi pemantauan lalu lintas sangat membantu kepolisian."</div>
-                </div>
-                <div class="tokoh-card">
-                    <div class="tokoh-header"><img src="data:image/jpeg;base64,{tokoh4_b64}" class="tokoh-img"><div><div class="tokoh-name">Irjen Pol. Anggoro Sukartono, S.I.K.</div><div class="tokoh-title">Kapolda D.I. Yogyakarta</div></div></div>
-                    <div class="tokoh-quote">"Yogyakarta adalah etalase budaya dan pariwisata. Kami berkomitmen menghadirkan keamanan dan keselamatan berlalu lintas tanpa kompromi."</div>
-                </div>
+            <div class="tokoh-card">
+                <div class="tokoh-header"><img src="data:image/png;base64,{tokoh3_b64}" class="tokoh-img"><div><div class="tokoh-name">KOMBESPOL ARIE PRASETYA SYAF'AT, S.I.K.</div><div class="tokoh-title">Dirlantas Polda D.I. Yogyakarta</div></div></div>
+                <div class="tokoh-quote">"Kesadaran dan budaya tertib berlalu lintas harus menjadi fondasi utama. Pemanfaatan teknologi pemantauan lalu lintas sangat membantu kepolisian."</div>
+            </div>
+            <div class="tokoh-card">
+                <div class="tokoh-header"><img src="data:image/jpeg;base64,{tokoh4_b64}" class="tokoh-img"><div><div class="tokoh-name">Irjen Pol. Anggoro Sukartono, S.I.K.</div><div class="tokoh-title">Kapolda D.I. Yogyakarta</div></div></div>
+                <div class="tokoh-quote">"Yogyakarta adalah etalase budaya dan pariwisata. Kami berkomitmen menghadirkan keamanan dan keselamatan berlalu lintas tanpa kompromi."</div>
             </div>
         ''', unsafe_allow_html=True)
 
     st.divider()
     st.markdown("<h3 style='text-align:center; color:#002147; font-size:20px;'>Berita Terkini Truk ODOL</h3><br>", unsafe_allow_html=True)
-    st.markdown("""
-        <div style="padding: 0 10px;">
-            <div class="news-card"><div class="news-title">Ratusan Ribu Truk Diperiksa, Pelanggaran ODOL Masih Tinggi</div><div class="news-excerpt">Operasi penertiban kendaraan bermuatan lebih terus digencarkan...</div><a href="https://otomotif.kompas.com/read/2026/04/06/102200715/ratusan-ribu-truk-diperiksa-pelanggaran-odol-masih-tinggi" target="_blank" style="color:#f39c12; font-weight:bold; text-decoration:none;">Baca Selengkapnya →</a></div>
-            <div class="news-card"><div class="news-title">Daftar Kecelakaan yang Disebabkan Truk ODOL</div><div class="news-excerpt">Catatan insiden fatal di berbagai ruas jalan nasional akibat tonase berlebih...</div><a href="https://otomotif.kompas.com/read/2025/06/09/171200015/daftar-kecelakaan-yang-disebabkan-truk-odol" target="_blank" style="color:#f39c12; font-weight:bold; text-decoration:none;">Baca Selengkapnya →</a></div>
-        </div>
-    """, unsafe_allow_html=True)
+    
+    n1, n2 = st.columns(2)
+    with n1:
+        st.markdown("""<div class="news-card"><div class="news-title">Ratusan Ribu Truk Diperiksa, Pelanggaran ODOL Masih Tinggi</div><div class="news-excerpt">Operasi penertiban kendaraan bermuatan lebih terus digencarkan...</div><a href="https://otomotif.kompas.com/read/2026/04/06/102200715/ratusan-ribu-truk-diperiksa-pelanggaran-odol-masih-tinggi" target="_blank" style="color:#f39c12; font-weight:bold; text-decoration:none;">Baca Selengkapnya →</a></div>""", unsafe_allow_html=True)
+    with n2:
+        st.markdown("""<div class="news-card"><div class="news-title">Daftar Kecelakaan yang Disebabkan Truk ODOL</div><div class="news-excerpt">Catatan insiden fatal di berbagai ruas jalan nasional akibat tonase berlebih...</div><a href="https://otomotif.kompas.com/read/2025/06/09/171200015/daftar-kecelakaan-yang-disebabkan-truk-odol" target="_blank" style="color:#f39c12; font-weight:bold; text-decoration:none;">Baca Selengkapnya →</a></div>""", unsafe_allow_html=True)
 
 # ==========================================
 # HALAMAN 2: DETEKSI FOTO & VIDEO
@@ -320,14 +320,19 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
     st.markdown("<div style='padding: 20px 15px;'>", unsafe_allow_html=True)
     st.info("**Panduan Singkat:** Unggah foto atau video pendek (format JPG, PNG, MP4) yang memperlihatkan truk di jalan untuk mendeteksi pelanggaran secara otomatis.")
     
-    uploaded_file = st.file_uploader("Pilih file foto/video", type=['jpg', 'jpeg', 'png', 'webp', 'mp4', 'avi', 'mov', 'mpeg4'])
+    c_up1, c_up2, c_up3 = st.columns([1, 4, 1])
+    with c_up2:
+        uploaded_file = st.file_uploader("Pilih file foto/video", type=['jpg', 'jpeg', 'png', 'webp', 'mp4', 'avi', 'mov', 'mpeg4'])
+        
     if uploaded_file is not None:
-        with st.spinner("Memproses deteksi AI..."):
-            ftype, res_file = process_detection(uploaded_file)
-            if ftype == "video":
-                st.video(res_file)
-            else:
-                st.image(res_file, use_container_width=True)
+        c_res1, c_res2, c_res3 = st.columns([1, 4, 1])
+        with c_res2:
+            with st.spinner("Memproses deteksi AI..."):
+                ftype, res_file = process_detection(uploaded_file)
+                if ftype == "video":
+                    st.video(res_file)
+                else:
+                    st.image(res_file, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ==========================================
@@ -346,40 +351,43 @@ elif st.session_state.current_selected_menu == "CCTV Real-Time":
     """, unsafe_allow_html=True)
 
     st.markdown("<div style='padding: 20px 15px;'>", unsafe_allow_html=True)
-    st.markdown("<div style='background:#e8f4fd; color:#002147; font-weight:bold; padding:15px; border-radius:10px; margin-bottom:15px; border:1px solid #b6d4fe; font-size:13px;'>Catatan: Fitur Live CCTV real-time menggunakan kamera perangkat lokal (laptop). Gunakan menu Deteksi Foto & Video jika diakses melalui HP.</div>", unsafe_allow_html=True)
+    
+    c_cc1, c_cc2, c_cc3 = st.columns([1, 4, 1])
+    with c_cc2:
+        st.markdown("<div style='background:#e8f4fd; color:#002147; font-weight:bold; padding:15px; border-radius:10px; margin-bottom:15px; border:1px solid #b6d4fe; font-size:13px;'>Catatan: Fitur Live CCTV real-time menggunakan kamera perangkat lokal (laptop). Gunakan menu Deteksi Foto & Video jika diakses melalui HP.</div>", unsafe_allow_html=True)
 
-    if 'cctv_active' not in st.session_state:
-        st.session_state.cctv_active = False
-
-    c_b1, c_b2 = st.columns(2)
-    with c_b1:
-        if st.button("Mulai Kamera", use_container_width=True):
-            st.session_state.cctv_active = True
-    with c_b2:
-        if st.button("Matikan Kamera", use_container_width=True):
+        if 'cctv_active' not in st.session_state:
             st.session_state.cctv_active = False
 
-    frame_placeholder = st.empty()
-    recap_data = []
+        c_b1, c_b2 = st.columns(2)
+        with c_b1:
+            if st.button("Mulai Kamera", use_container_width=True):
+                st.session_state.cctv_active = True
+        with c_b2:
+            if st.button("Matikan Kamera", use_container_width=True):
+                st.session_state.cctv_active = False
 
-    if st.session_state.cctv_active:
-        cap = cv2.VideoCapture(0)
-        while cap.isOpened() and st.session_state.cctv_active:
-            ret, frame = cap.read()
-            if not ret: break
-            results = model_onnx.predict(frame, conf=0.25, verbose=False)
-            annotated_frame = results[0].plot()
-            frame_rgb = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
-            frame_placeholder.image(frame_rgb, channels="RGB", use_container_width=True)
-            
-            if len(results[0].boxes) > 0:
-                temp_snap = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg').name
-                cv2.imwrite(temp_snap, annotated_frame)
-                recap_data.append({"waktu": time.strftime("%H:%M:%S"), "path": temp_snap, "status": "Terdeteksi"})
-            time.sleep(0.03)
-        cap.release()
-    else:
-        frame_placeholder.info("Kamera dimatikan.")
+        frame_placeholder = st.empty()
+        recap_data = []
+
+        if st.session_state.cctv_active:
+            cap = cv2.VideoCapture(0)
+            while cap.isOpened() and st.session_state.cctv_active:
+                ret, frame = cap.read()
+                if not ret: break
+                results = model_onnx.predict(frame, conf=0.25, verbose=False)
+                annotated_frame = results[0].plot()
+                frame_rgb = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
+                frame_placeholder.image(frame_rgb, channels="RGB", use_container_width=True)
+                
+                if len(results[0].boxes) > 0:
+                    temp_snap = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg').name
+                    cv2.imwrite(temp_snap, annotated_frame)
+                    recap_data.append({"waktu": time.strftime("%H:%M:%S"), "path": temp_snap, "status": "Terdeteksi"})
+                time.sleep(0.03)
+            cap.release()
+        else:
+            frame_placeholder.info("Kamera dimatikan.")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
