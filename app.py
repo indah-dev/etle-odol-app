@@ -152,12 +152,12 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. HEADER LOGO & NAVBAR ---
+# --- 3. HEADER LOGO (DIPERBESAR AGAR TERLIHAT JELAS) & NAVBAR ---
 st.markdown(f'''
-    <div style="display: flex; justify-content: center; align-items: center; gap: 15px; padding: 15px 10px 5px 10px; background-color: #f4f6f9;">
-        <img src="data:image/png;base64,{logo_polri}" style="height: 45px; object-fit: contain;">
-        <img src="data:image/png;base64,{logo_korlantas}" style="height: 45px; object-fit: contain;">
-        <img src="data:image/png;base64,{logo_hut}" style="height: 45px; object-fit: contain;">
+    <div style="display: flex; justify-content: center; align-items: center; gap: 25px; padding: 20px 10px 12px 10px; background-color: #f4f6f9;">
+        <img src="data:image/png;base64,{logo_polri}" style="height: 75px; width: 75px; object-fit: contain;">
+        <img src="data:image/png;base64,{logo_korlantas}" style="height: 75px; width: 75px; object-fit: contain;">
+        <img src="data:image/png;base64,{logo_hut}" style="height: 75px; width: 75px; object-fit: contain;">
     </div>
 ''', unsafe_allow_html=True)
 
@@ -200,7 +200,6 @@ if st.session_state.current_selected_menu == "Beranda":
         </div>
     """, unsafe_allow_html=True)
 
-    # PERBAIKAN CSS COUNTER: Agar pas di HP dan jejer rapi 4 kolom di Laptop
     regulation_counter_html = """
     <style>
         body { margin: 0; padding: 0; background-color: #f4f6f9; box-sizing: border-box; } 
@@ -254,7 +253,6 @@ if st.session_state.current_selected_menu == "Beranda":
 
     st.write("<br>", unsafe_allow_html=True)
     
-    # PERBAIKAN GRAFIK: Di laptop marginnya ada di kiri-kanan, di HP otomatis penuh
     c_l, c_mid, c_r = st.columns([1, 4, 1])
     with c_mid:
         st.markdown("<h3 style='text-align:center; color:#002147; font-size:20px; padding:0 10px;'>Presentase Kecelakaan Berdasarkan Jenis Kendaraan</h3>", unsafe_allow_html=True)
@@ -378,7 +376,7 @@ elif st.session_state.current_selected_menu == "CCTV Real-Time":
                 results = model_onnx.predict(frame, conf=0.25, verbose=False)
                 annotated_frame = results[0].plot()
                 frame_rgb = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
-                frame_placeholder.image(frame_rgb, channels="RGB", use_container_width=True)
+                frame_placeholder.image(frame_rgb, channels="RGB", use_column_width=True)
                 
                 if len(results[0].boxes) > 0:
                     temp_snap = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg').name
