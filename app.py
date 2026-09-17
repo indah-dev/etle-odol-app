@@ -152,8 +152,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. HEADER LOGO & NAVBAR (STRUKTUR BARU ANTI-HANCUR DI HP) ---
-# Bagian logo dibuat satu baris rapi menggunakan Flexbox HTML agar tidak bertumpuk
+# --- 3. HEADER LOGO & NAVBAR ---
 st.markdown(f'''
     <div style="display: flex; justify-content: center; align-items: center; gap: 15px; padding: 15px 10px 5px 10px; background-color: #f4f6f9;">
         <img src="data:image/png;base64,{logo_polri}" style="height: 45px; object-fit: contain;">
@@ -265,10 +264,11 @@ if st.session_state.current_selected_menu == "Beranda":
     st.divider()
     st.markdown("<h3 style='text-align:center; color:#002147; font-size:20px; padding:0 10px;'>Pandangan & Komitmen Penegakan Hukum</h3><br>", unsafe_allow_html=True)
     
-    col_t1, col_t2 = st.columns(1)
+    # KODE YANG DI-FIX: Menggunakan st.columns(2) agar rapi di desktop dan otomatis menumpuk di HP
+    col_t1, col_t2 = st.columns(2)
     with col_t1:
         st.markdown(f'''
-            <div style="padding: 0 10px;">
+            <div style="padding: 0 5px;">
                 <div class="tokoh-card">
                     <div class="tokoh-header"><img src="data:image/jpeg;base64,{tokoh1_b64}" class="tokoh-img"><div><div class="tokoh-name">Irjen Pol. Wibowo, S.I.K., M.Hum.</div><div class="tokoh-title">Kakorlantas Polri</div></div></div>
                     <div class="tokoh-quote">"Penegakan hukum berbasis teknologi seperti E-TLE adalah kunci memastikan penindakan pelanggaran berpotensi fatalitas tinggi berjalan transparan."</div>
@@ -276,6 +276,19 @@ if st.session_state.current_selected_menu == "Beranda":
                 <div class="tokoh-card">
                     <div class="tokoh-header"><img src="data:image/jpeg;base64,{tokoh2_b64}" class="tokoh-img"><div><div class="tokoh-name">Dudy Purwagandhi, S.H.</div><div class="tokoh-title">Menteri Perhubungan RI</div></div></div>
                     <div class="tokoh-quote">"Pelanggaran dimensi dan muatan berlebih (ODOL) sangat membahayakan nyawa dan membebani anggaran negara akibat kerusakan infrastruktur."</div>
+                </div>
+            </div>
+        ''', unsafe_allow_html=True)
+    with col_t2:
+        st.markdown(f'''
+            <div style="padding: 0 5px;">
+                <div class="tokoh-card">
+                    <div class="tokoh-header"><img src="data:image/png;base64,{tokoh3_b64}" class="tokoh-img"><div><div class="tokoh-name">KOMBESPOL ARIE PRASETYA SYAF'AT, S.I.K.</div><div class="tokoh-title">Dirlantas Polda D.I. Yogyakarta</div></div></div>
+                    <div class="tokoh-quote">"Kesadaran dan budaya tertib berlalu lintas harus menjadi fondasi utama. Pemanfaatan teknologi pemantauan lalu lintas sangat membantu kepolisian."</div>
+                </div>
+                <div class="tokoh-card">
+                    <div class="tokoh-header"><img src="data:image/jpeg;base64,{tokoh4_b64}" class="tokoh-img"><div><div class="tokoh-name">Irjen Pol. Anggoro Sukartono, S.I.K.</div><div class="tokoh-title">Kapolda D.I. Yogyakarta</div></div></div>
+                    <div class="tokoh-quote">"Yogyakarta adalah etalase budaya dan pariwisata. Kami berkomitmen menghadirkan keamanan dan keselamatan berlalu lintas tanpa kompromi."</div>
                 </div>
             </div>
         ''', unsafe_allow_html=True)
