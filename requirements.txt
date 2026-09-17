@@ -1,5 +1,9 @@
 streamlit
-ultralytics
-opencv-python-headless
+streamlit-option-menu
+plotly
 Pillow
+pandas
+opencv-python-headless
 numpy
+ultralytics
+reportlab
