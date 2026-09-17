@@ -152,7 +152,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. HEADER LOGO (DIPERBESAR AGAR TERLIHAT JELAS) & NAVBAR ---
+# --- 3. HEADER LOGO & NAVBAR ---
 st.markdown(f'''
     <div style="display: flex; justify-content: center; align-items: center; gap: 25px; padding: 20px 10px 12px 10px; background-color: #f4f6f9;">
         <img src="data:image/png;base64,{logo_polri}" style="height: 75px; width: 75px; object-fit: contain;">
@@ -376,7 +376,7 @@ elif st.session_state.current_selected_menu == "CCTV Real-Time":
                 results = model_onnx.predict(frame, conf=0.25, verbose=False)
                 annotated_frame = results[0].plot()
                 frame_rgb = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
-                frame_placeholder.image(frame_rgb, channels="RGB", use_column_width=True)
+                frame_placeholder.image(frame_rgb, channels="RGB", use_container_width=True)
                 
                 if len(results[0].boxes) > 0:
                     temp_snap = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg').name
@@ -390,10 +390,23 @@ elif st.session_state.current_selected_menu == "CCTV Real-Time":
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ==========================================
-# HALAMAN 4: TENTANG
+# HALAMAN 4: TENTANG (DENGAN DESKRIPSI APLIKASI)
 # ==========================================
 elif st.session_state.current_selected_menu == "Tentang":
-    st.markdown("<div style='padding: 30px 10px;'>", unsafe_allow_html=True)
+    st.markdown("<div style='padding: 30px 15px;'>", unsafe_allow_html=True)
+    
+    # Bagian Penjelasan Aplikasi
+    c_desc1, c_desc2, c_desc3 = st.columns([1, 4, 1])
+    with c_desc2:
+        st.markdown("""
+            <div style="background-color: #ffffff; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,33,71,0.06); border: 1px solid #eef2f7; margin-bottom: 35px;">
+                <h2 style="color: #002147; font-weight: 800; margin-top: 0; font-size: 22px; text-align: center;">Tentang Aplikasi E-TLE ODOL</h2>
+                <p style="color: #444; font-size: 14px; line-height: 1.6; text-align: justify; margin-top: 15px; margin-bottom: 0;">
+                    <b>E-TLE ODOL (Electronic Traffic Law Enforcement - Over Dimension Over Loading)</b> adalah sistem cerdas berbasis kecerdasan buatan (<i>Artificial Intelligence</i>) yang memanfaatkan model YOLOv8. Aplikasi ini dikembangkan untuk mendukung Korlantas Polri dalam mendeteksi pelanggaran dimensi dan muatan berlebih pada kendaraan angkutan barang secara otomatis, guna menekan angka kecelakaan fatal serta mencegah kerusakan infrastruktur jalan nasional.
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+
     st.markdown("<h2 style='text-align:center; color:#002147; font-weight:800; margin-bottom: 25px; font-size:22px;'>Tentang Pengembang Sistem</h2>", unsafe_allow_html=True)
     
     img_b64_str = f'data:image/jpeg;base64,{img6}' if img6 else ''
