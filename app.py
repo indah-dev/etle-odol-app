@@ -116,33 +116,27 @@ def render_lokasi_realtime():
     waktu_terkini = f"{nama_hari}, {waktu_sekarang.strftime('%d/%m/%Y, %H:%M:%S')}"
     lokasi_teks = f"Lat: -4.03069, Lon: 122.51556 (Waktu: {waktu_terkini})"
     
-    html_gps_code = f"""
+    html_gps_code = """
     <div id="gps-box" style="font-family:sans-serif; font-size:13px; color:#002147; background:#e8f4fd; padding:12px 15px; border-radius:8px; border:1px solid #b6d4fe; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        <b>✅ GPS & Waktu Terdeteksi:</b> Lat: -4.03069, Lon: 122.51556 | <b>Waktu:</b> {waktu_terkini}
+        <b>✅ GPS & Waktu Terdeteksi:</b> Lat: -4.03069, Lon: 122.51556 | <b>Waktu Memuat...</b>
     </div>
     
     <script>
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            function(position) {
-                var lat = position.coords.latitude.toFixed(5);
-                var lon = position.coords.longitude.toFixed(5);
-                var days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-                var now = new Date();
-                var hari = days[now.getDay()];
-                var tanggal = String(now.getDate()).padStart(2, '0') + '/' + String(now.getMonth() + 1).padStart(2, '0') + '/' + now.getFullYear();
-                var jam = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
-                var waktuStr = hari + ', ' + tanggal + ', ' + jam;
-                
-                var box = document.getElementById("gps-box");
-                box.innerHTML = "<b>✅ GPS & Waktu Terdeteksi:</b> Lat: " + lat + ", Lon: " + lon + " | <b>Waktu:</b> " + waktuStr;
-            },
-            function(error) {
-                // Menggunakan fallback waktu server jika GPS diblokir
-            },
-            {{ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }}
-        );
+    function updateRealtimeClock() {
+        var days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+        var now = new Date();
+        var hari = days[now.getDay()];
+        var tanggal = String(now.getDate()).padStart(2, '0') + '/' + String(now.getMonth() + 1).padStart(2, '0') + '/' + now.getFullYear();
+        var jam = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
+        var waktuStr = hari + ', ' + tanggal + ', ' + jam;
+        
+        var box = document.getElementById("gps-box");
+        if (box) {
+            box.innerHTML = "<b>✅ GPS & Waktu Terdeteksi:</b> Lat: -4.03069, Lon: 122.51556 | <b>Waktu:</b> " + waktuStr;
+        }
     }
+    setInterval(updateRealtimeClock, 1000);
+    updateRealtimeClock();
     </script>
     """
     components.html(html_gps_code, height=60)
@@ -583,7 +577,7 @@ elif st.session_state.current_selected_menu == "Tentang":
         </div>
         """, unsafe_allow_html=True)
 
-        # --- FAQ 10 PERTANYAAN TERKAIT MODEL YOLO, CARA PAKAI, DOKUMENTASI, DLL ---
+        # --- FAQ 10 PERTANYAAN LENGKAP ---
         faq_html = """
         <div style="background-color: #ffffff; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,33,71,0.06); border: 1px solid #eef2f7; margin-bottom: 35px;">
             <h2 style="color: #002147; font-weight: 800; margin-top: 0; font-size: 20px; text-align: center; margin-bottom: 25px;">Panduan & FAQ 10 Pertanyaan Umum Aplikasi E-TLE ODOL</h2>
@@ -605,7 +599,7 @@ elif st.session_state.current_selected_menu == "Tentang":
 
             <div style="margin-bottom: 18px;">
                 <b style="color: #002147; font-size: 14px;">4. Bagaimana sistem mengambil data waktu dan lokasi GPS secara real-time?</b>
-                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Aplikasi menggunakan fungsi integrasi JavaScript Geolocation API dan modul waktu Python untuk menampilkan hari, tanggal, jam, serta koordinat secara sinkron dan otomatis.</p>
+                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Aplikasi menggunakan fungsi integrasi JavaScript dan modul waktu Python untuk menampilkan hari, tanggal, jam, serta koordinat secara sinkron dan otomatis.</p>
             </div>
 
             <div style="margin-bottom: 18px;">
