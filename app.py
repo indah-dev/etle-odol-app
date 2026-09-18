@@ -108,20 +108,16 @@ def process_detection(file):
         return "image", cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB), has_overload
 
 
-# --- KOMPONEN GPS MAP CAMERA STABIL (JS + Reverse Geocoding API) ---
+# --- KOMPONEN GPS MAP CAMERA STABIL ---
 def render_lokasi_realtime(container_key_prefix="deteksi"):
-    """
-    Mengambil koordinat GPS asli dari browser perangkat pengguna secara real-time
-    tanpa error, lalu mencocokkannya dengan nama jalan/alamat asli melalui OpenStreetMap.
-    """
     html_gps_code = f"""
-    <div id="gps-box_{container_key_prefix}" style="font-family:sans-serif; font-size:13px; color:#002147; background:#e8f4fd; padding:12px 15px; border-radius:8px; border:1px solid #b6d4fe; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+    <div id="gps-box" style="font-family:sans-serif; font-size:13px; color:#002147; background:#e8f4fd; padding:12px 15px; border-radius:8px; border:1px solid #b6d4fe; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
         🛰️ Meminta izin akses GPS perangkat untuk sinkronisasi Google Maps...
     </div>
     
     <script>
     function fetchLocation() {
-        const box = document.getElementById("gps-box_{container_key_prefix}");
+        const box = document.getElementById("gps-box");
         if (!navigator.geolocation) {
             box.innerHTML = "<b>⚠️ Error:</b> Geolokasi tidak didukung oleh browser Anda.";
             return;
@@ -132,12 +128,12 @@ def render_lokasi_realtime(container_key_prefix="deteksi"):
                 const lat = position.coords.latitude;
                 const lon = position.coords.longitude;
                 const accuracy = position.coords.accuracy;
-                const waktuLocal = new Date().toLocaleString("id-ID", {{ timeZoneName: 'short' }});
+                const waktuLocal = new Date().toLocaleString("id-ID");
                 
-                box.innerHTML = `🛰️ GPS Terdeteksi (Lat: ${{lat.toFixed(4)}}, Lon: ${{lon.toFixed(4)}}). Mengambil nama alamat...`;
+                box.innerHTML = "🛰️ GPS Terdeteksi. Mengambil nama alamat...";
                 
                 try {
-                    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${{lat}}&lon=${{lon}}&zoom=18&addressdetails=1`);
+                    const response = await fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat=" + lat + "&lon=" + lon + "&zoom=18&addressdetails=1");
                     const data = await response.json();
                     const addr = data.address || {};
                     
@@ -146,25 +142,16 @@ def render_lokasi_realtime(container_key_prefix="deteksi"):
                     const kota = addr.city || addr.town || addr.municipality || "Kota";
                     const provinsi = addr.state || "";
                     
-                    const alamatLengkap = `${{jalan}}, ${{kecamatan ? kecamatan + ', ' : ''}}${{kota}}, ${{provinsi}}`.replace(/, ,/g, ',');
-                    const finalString = `${{alamatLengkap}}\\nLat: ${{lat.toFixed(6)}}°, Long: ${{lon.toFixed(6)}}°`;
-                    
-                    // Simpan ke sessionStorage agar bisa diakses python jika diperlukan atau langsung dirender
-                    sessionStorage.setItem("etle_lokasi_{container_key_prefix}", finalString);
-                    sessionStorage.setItem("etle_waktu_{container_key_prefix}", waktuLocal);
-                    
-                    box.innerHTML = `<b>✅ GPS Map Camera Sinkron (Lokasi Perangkat Anda):</b><br><b>${{alamatLengkap}}</b><br><small style="color:#27ae60; font-weight:bold;">Waktu: ${{waktuLocal}} | Akurasi ±${{Math.round(accuracy)}} m (Lat: ${{lat.toFixed(4)}}, Lon: ${{lon.toFixed(4)}})</small>`;
+                    const alamatLengkap = jalan + ", " + (kecamatan ? kecamatan + ", " : "") + kota + ", " + provinsi;
+                    box.innerHTML = "<b>✅ GPS Map Camera Sinkron (Lokasi Perangkat Anda):</b><br><b>" + alamatLengkap + "</b><br><small style='color:#27ae60; font-weight:bold;'>Waktu: " + waktuLocal + " | Akurasi ±" + Math.round(accuracy) + " m (Lat: " + lat.toFixed(4) + ", Lon: " + lon.toFixed(4) + ")</small>";
                 } catch (err) {
-                    const fallbackStr = `Titik Koordinat GPS Perangkat\\nLat: ${{lat.toFixed(6)}}°, Long: ${{lon.toFixed(6)}}°`;
-                    sessionStorage.setItem("etle_lokasi_{container_key_prefix}", fallbackStr);
-                    sessionStorage.setItem("etle_waktu_{container_key_prefix}", waktuLocal);
-                    box.innerHTML = `<b>✅ GPS Koordinat Terkunci:</b> Lat: ${{lat.toFixed(4)}}, Lon: ${{lon.toFixed(4)}}`;
+                    box.innerHTML = "<b>✅ GPS Koordinat Terkunci:</b> Lat: " + lat.toFixed(4) + ", Lon: " + lon.toFixed(4);
                 }
             },
             function(error) {
-                box.innerHTML = `<b style="color:#c0392b;">⚠️ Akses GPS Ditolak/Gagal:</b> Pastikan izin lokasi browser Anda diaktifkan untuk situs ini.`;
+                box.innerHTML = "<b style='color:#c0392b;'>⚠️ Akses GPS Ditolak/Gagal:</b> Pastikan izin lokasi browser diaktifkan.";
             },
-            {{ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }}
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
         );
     }
     fetchLocation();
@@ -172,11 +159,9 @@ def render_lokasi_realtime(container_key_prefix="deteksi"):
     """
     components.html(html_gps_code, height=90)
     
-    # Waktu presisi server lokal backup
     waktu_fallback = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-    lokasi_default = f"Pos Pantau Wilayah Perangkat (Lat/Long Aktif)\nWaktu: {waktu_fallback}"
+    lokasi_default = f"Pos Pantau Wilayah Perangkat (GPS Aktif)\nWaktu: {waktu_fallback}"
     
-    # Berikan opsi input manual jaga-jaga jika device memblokir GPS
     with st.expander("✏️ Atur / Koreksi Lokasi Pos Pantau Manual (Opsional)"):
         lokasi_manual = st.text_input("Nama Lokasi / Pos Pantau", value="", placeholder="Contoh: Jl. Ahmad Yani, Kendari", key=f"man_{container_key_prefix}")
         if lokasi_manual:
@@ -185,24 +170,21 @@ def render_lokasi_realtime(container_key_prefix="deteksi"):
     return lokasi_default, waktu_fallback
 
 
-# --- 2. CSS CUSTOM RESPONSIF UNTUK HP & LAPTOP ---
+# --- 2. CSS CUSTOM RESPONSIF ---
 st.markdown("""
 <style>
 .stApp { background-color: #f4f6f9 !important; color: #333333 !important; }
 .block-container { padding-top: 0 !important; padding-bottom: 0 !important; padding-left: 0 !important; padding-right: 0 !important; max-width: 100% !important; overflow-x: hidden; }
 header { display: none !important; }
 
-/* TOMBOL MULAI (HIJAU) & MATIKAN (MERAH) */
 div.stButton:nth-of-type(1) > button { background-color: #27ae60 !important; color: white !important; font-weight: bold !important; border-radius: 8px !important; border: none !important; }
 div.stButton:nth-of-type(1) > button:hover { background-color: #219653 !important; }
 div.stButton:nth-of-type(2) > button { background-color: #e74c3c !important; color: white !important; font-weight: bold !important; border-radius: 8px !important; border: none !important; }
 div.stButton:nth-of-type(2) > button:hover { background-color: #c0392b !important; }
 
-/* UPLOAD BUTTON */
 [data-testid="stFileUploader"] button { background-color: #f39c12 !important; color: #002147 !important; font-weight: bold !important; border: none !important; border-radius: 6px !important; }
 [data-testid="stFileUploader"] button:hover { background-color: #e67e22 !important; color: #ffffff !important; }
 
-/* KARTU TOKOH & PROFIL */
 .tokoh-card { background-color: #ffffff; padding: 20px; border-radius: 10px; border-left: 5px solid #f39c12; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 15px; height: 100%; display: flex; flex-direction: column; justify-content: center; }
 .tokoh-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 .tokoh-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 2px solid #f39c12; }
@@ -217,7 +199,6 @@ div.stButton:nth-of-type(2) > button:hover { background-color: #c0392b !importan
 .profile-info h3 { color: #002147; font-size: 22px; font-weight: 800; margin: 0 0 5px 0; }
 .profile-info p { color: #555; font-size: 15px; margin: 4px 0; font-weight: 500; }
 
-/* RESPONSIVE DESIGN (MOBILE FIRST) */
 .hero { position: relative; width: 100%; height: 50vh; background-color: #002147; overflow: hidden; }
 .hero-deteksi { position: relative; width: 100%; height: 40vh; background-color: #002147; overflow: hidden; }
 .hero img, .hero-deteksi img { position: absolute; width: 100%; height: 100%; object-fit: cover; opacity: 0; animation: fade3 6s infinite; }
@@ -229,7 +210,6 @@ div.stButton:nth-of-type(2) > button:hover { background-color: #c0392b !importan
 .hero-text h1 { font-size: 30px; font-weight: 800; text-transform: uppercase; margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.7); line-height: 1.2; }
 .hero-text p { font-size: 13px; border-top: 2px solid #f39c12; display: inline-block; padding-top: 8px; margin-top: 8px; color: #f39c12; font-weight: bold; }
 
-/* LAYAR BESAR (LAPTOP/DESKTOP) */
 @media(min-width: 768px) {
     .hero { height: 100vh; }
     .hero-deteksi { height: 100vh; }
@@ -250,7 +230,6 @@ st.markdown(f'''
 </div>
 ''', unsafe_allow_html=True)
 
-# Navbar Menu
 menu_options = ["Beranda", "Deteksi Foto & Video", "CCTV Real-Time", "Tentang"]
 if 'current_selected_menu' not in st.session_state:
     st.session_state.current_selected_menu = "Beranda"
@@ -306,18 +285,10 @@ if st.session_state.current_selected_menu == "Beranda":
     }
     </style>
     <div class="counter-wrapper">
-        <div class="counter-box">
-            <h3 class="count" data-target="12" data-unit=" M">0 M</h3><p>(Maks. Panjang Truk Tunggal)</p>
-        </div>
-        <div class="counter-box">
-            <h3 class="count" data-target="2.5" data-unit=" M">0 M</h3><p>(Batas Maksimal Lebar)</p>
-        </div>
-        <div class="counter-box">
-            <h3 class="count" data-target="4.2" data-unit=" M">0 M</h3><p>(Batas Maks. Tinggi + Muatan)</p>
-        </div>
-        <div class="counter-box">
-            <h3 class="count" data-target="24" data-unit=" Ton">0 Ton</h3><p>(Batas JBB Truk 3 Sumbu)</p>
-        </div>
+        <div class="counter-box"><h3 class="count" data-target="12" data-unit=" M">0 M</h3><p>(Maks. Panjang Truk Tunggal)</p></div>
+        <div class="counter-box"><h3 class="count" data-target="2.5" data-unit=" M">0 M</h3><p>(Batas Maksimal Lebar)</p></div>
+        <div class="counter-box"><h3 class="count" data-target="4.2" data-unit=" M">0 M</h3><p>(Batas Maks. Tinggi + Muatan)</p></div>
+        <div class="counter-box"><h3 class="count" data-target="24" data-unit=" Ton">0 Ton</h3><p>(Batas JBB Truk 3 Sumbu)</p></div>
     </div>
     <script>
     const counters = document.querySelectorAll('.count'); 
@@ -387,7 +358,7 @@ if st.session_state.current_selected_menu == "Beranda":
         st.markdown("""<div class="news-card"><div class="news-title">Daftar Kecelakaan yang Disebabkan Truk ODOL</div><div class="news-excerpt">Catatan insiden fatal di berbagai ruas jalan nasional akibat tonase berlebih...</div><a href="https://otomotif.kompas.com/read/2025/06/09/171200015/daftar-kecelakaan-yang-disebabkan-truk-odol" target="_blank" style="color:#f39c12; font-weight:bold; text-decoration:none;">Baca Selengkapnya →</a></div>""", unsafe_allow_html=True)
 
 # ==========================================
-# HALAMAN 2: DETEKSI FOTO & VIDEO (GPS MAP CAMERA)
+# HALAMAN 2: DETEKSI FOTO & VIDEO
 # ==========================================
 elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
     st.markdown(f"""
@@ -430,7 +401,6 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                     img_bytes = buffer.tobytes()
                     st.download_button("📥 Unduh Gambar Ini", img_bytes, file_name=f"deteksi_{uploaded_file.name}", mime="image/jpeg", key=f"dl_img_{file_idx}")
 
-                # HANYA masukkan ke laporan jika terdeteksi OVERLOAD
                 if has_overload:
                     tmp_img = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg').name
                     if ftype == "image":
@@ -449,7 +419,6 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                         "img_path": tmp_img
                     })
 
-        # JIKA ADA DATA OVERLOAD, BUAT TOMBOL UNDUH LAPORAN PDF
         if len(report_data) > 0:
             st.divider()
             c_rep1, c_rep2, c_rep3 = st.columns([1, 4, 1])
