@@ -19,7 +19,7 @@ from ultralytics import YOLO
 # Tambahan library untuk ReportLab PDF
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from reportlab.lib.units import inch
 
@@ -108,77 +108,49 @@ def process_detection(file):
         return "image", cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB), has_overload
 
 
-# --- KOMPONEN GPS MAP CAMERA OTOMATIS & NAMA LOKASI PRESISI ---
+# --- KOMPONEN GPS MAP CAMERA AMAN & STABIL ---
 def render_lokasi_realtime(container_key_prefix="deteksi"):
     html_gps_code = """
     <div id="gps-box" style="font-family:sans-serif; font-size:13px; color:#002147; background:#e8f4fd; padding:12px 15px; border-radius:8px; border:1px solid #b6d4fe; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        🛰️ Mengambil koordinat GPS dan nama wilayah perangkat secara otomatis...
+        🛰️ Meminta izin akses GPS perangkat untuk sinkronisasi Google Maps...
     </div>
     
-    <input type="hidden" id="val_lokasi" name="val_lokasi" value="">
-    <input type="hidden" id="val_waktu" name="val_waktu" value="">
-
     <script>
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-            async function(position) {
+            function(position) {
                 var lat = position.coords.latitude;
                 var lon = position.coords.longitude;
                 var acc = position.coords.accuracy;
-                var waktuStr = new Date().toLocaleString("id-ID", {dateStyle: 'short', timeStyle: 'medium'});
+                var waktu = new Date().toLocaleString("id-ID");
                 
                 var box = document.getElementById("gps-box");
-                box.innerHTML = "🛰️ GPS Aktif (" + lat.toFixed(4) + ", " + lon.toFixed(4) + "). Mencari nama wilayah...";
-                
-                try {
-                    let response = await fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat=" + lat + "&lon=" + lon + "&zoom=18&addressdetails=1");
-                    let data = await response.json();
-                    let addr = data.address || {};
-                    
-                    let road = addr.road || addr.suburb || addr.neighbourhood || addr.village || "Jalan Utama";
-                    let district = addr.suburb || addr.city_district || addr.county || "";
-                    let city = addr.city || addr.town || addr.municipality || "Kota";
-                    let state = addr.state || "";
-                    
-                    let namaWilayah = road + ", " + (district ? district + ", " : "") + city + ", " + state;
-                    let hasilFinal = namaWilayah + "\\nLat: " + lat.toFixed(5) + "°, Long: " + lon.toFixed(5) + "°";
-                    
-                    document.getElementById("val_lokasi").value = hasilFinal;
-                    document.getElementById("val_waktu").value = waktuStr;
-                    
-                    box.innerHTML = "<b>✅ GPS Map Camera Sinkron (Wilayah Anda):</b><br><b>" + namaWilayah + "</b><br><small style='color:#27ae60; font-weight:bold;'>Waktu: " + waktuStr + " | Koordinat: Lat " + lat.toFixed(4) + ", Lon " + lon.toFixed(4) + "</small>";
-                } catch (e) {
-                    let fallbackStr = "Wilayah Koordinat GPS Aktif\\nLat: " + lat.toFixed(5) + "°, Long: " + lon.toFixed(5) + "°";
-                    document.getElementById("val_lokasi").value = fallbackStr;
-                    document.getElementById("val_waktu").value = waktuStr;
-                    box.innerHTML = "<b>✅ Koordinat GPS Terkunci:</b> Lat " + lat.toFixed(4) + ", Lon " + lon.toFixed(4) + " (" + waktuStr + ")";
-                }
+                box.innerHTML = "<b>✅ GPS Terdeteksi:</b> Lat: " + lat.toFixed(5) + ", Lon: " + lon.toFixed(5) + " (Waktu: " + waktu + ")";
             },
             function(error) {
-                var defaultStr = "Kawasan Tertib Lalu Lintas (GPS Default)\\nLat: -4.03070°, Long: 122.5155°";
-                var waktuStr = new Date().toLocaleString("id-ID", {dateStyle: 'short', timeStyle: 'medium'});
-                document.getElementById("val_lokasi").value = defaultStr;
-                document.getElementById("val_waktu").value = waktuStr;
                 var box = document.getElementById("gps-box");
-                box.innerHTML = "<b style='color:#d35400;'>⚠️ GPS Perangkat Tidak Aktif / Diblokir. Menggunakan Titik Default Wilayah Utama.</b>";
+                box.innerHTML = "<b style='color:#c0392b;'>⚠️ Akses GPS Ditolak/Gagal.</b> Silakan gunakan pengaturan manual di bawah.";
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     } else {
-        var defaultStr = "Kawasan Tertib Lalu Lintas (GPS Default)\\nLat: -4.03070°, Long: 122.5155°";
-        var waktuStr = new Date().toLocaleString("id-ID", {dateStyle: 'short', timeStyle: 'medium'});
-        document.getElementById("val_lokasi").value = defaultStr;
-        document.getElementById("val_waktu").value = waktuStr;
+        document.getElementById("gps-box").innerHTML = "<b style='color:#c0392b;'>Geolokasi tidak didukung browser ini.</b>";
     }
     </script>
     """
     components.html(html_gps_code, height=75)
     
-    # Nilai fallback Python jika JS belum termuat sempurna
     waktu_sekarang = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-    lokasi_otomatis = f"Lepo-lepo, Kec. Baruga, Kota Kendari, Sulawesi Tenggara\nLat: -4.030700°, Long: 122.515500°"
     
-    return lokasi_otomatis, waktu_sekarang
+    # Opsi Input Manual Pos Pantau agar bebas disesuaikan kapan saja
+    lokasi_default = f"Pos Pantau Wilayah Utama (GPS Aktif)\nWaktu: {waktu_sekarang}"
+    
+    with st.expander("✏️ Atur / Masukkan Alamat Lokasi Pos Pantau Manual"):
+        lokasi_manual = st.text_input("Nama Jalan / Lokasi", value="", placeholder="Contoh: Jl. Ahmad Yani, Kendari", key=f"man_{container_key_prefix}")
+        if lokasi_manual:
+            return f"{lokasi_manual}\n(Validasi Lokasi Perangkat)", waktu_sekarang
+            
+    return lokasi_default, waktu_sekarang
 
 
 # --- 2. CSS CUSTOM RESPONSIF ---
@@ -384,7 +356,7 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
     """, unsafe_allow_html=True)
 
     st.markdown("<div style='padding: 20px 15px;'>", unsafe_allow_html=True)
-    st.info("**Panduan Singkat:** Unggah foto atau video pendek. Sistem otomatis mengambil titik koordinat GPS dan nama wilayah perangkat secara real-time.")
+    st.info("**Panduan Singkat:** Unggah foto atau video pendek. Sistem otomatis mengaktifkan modul geolokasi perangkat untuk menampilkan watermark waktu & lokasi GPS secara akurat.")
 
     c_gps1, c_gps2, c_gps3 = st.columns([1, 4, 1])
     with c_gps2:
@@ -436,96 +408,45 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
             with c_rep2:
                 st.markdown("<h3 style='text-align:center; color:#e74c3c;'>Ditemukan Indikasi Pelanggaran ODOL</h3>", unsafe_allow_html=True)
 
-                # --- PEMBUATAN PDF DENGAN LAYOUT RAPI PROFESIONAL ---
                 pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf').name
-                doc = SimpleDocTemplate(
-                    pdf_path, 
-                    pagesize=letter,
-                    rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30
-                )
+                doc = SimpleDocTemplate(pdf_path, pagesize=letter)
                 elements = []
                 styles = getSampleStyleSheet()
 
                 logo_elements = []
                 if os.path.exists("assets/logo_polri.png"):
-                    logo_elements.append(RLImage("assets/logo_polri.png", width=45, height=45))
+                    logo_elements.append(RLImage("assets/logo_polri.png", width=50, height=50))
                 if os.path.exists("assets/logo_korlantas.png"):
-                    logo_elements.append(RLImage("assets/logo_korlantas.png", width=45, height=45))
+                    logo_elements.append(RLImage("assets/logo_korlantas.png", width=50, height=50))
 
                 if logo_elements:
                     header_table = Table([logo_elements], hAlign='CENTER')
                     elements.append(header_table)
-                    elements.append(Spacer(1, 10))
+                    elements.append(Spacer(1, 12))
 
-                title_style = ParagraphStyle(
-                    'ReportTitle',
-                    parent=styles['Title'],
-                    fontName='Helvetica-Bold',
-                    fontSize=13,
-                    leading=16,
-                    textColor=colors.HexColor('#002147')
-                )
-                title = Paragraph("<b>LAPORAN RESMI PELANGGARAN TRUK ODOL (OVER DIMENSION OVER LOAD)</b>", title_style)
+                title = Paragraph("<para align=center><b>LAPORAN PELANGGARAN TRUK ODOL (OVER DIMENSION OVER LOAD)</b></para>", styles['Title'])
                 elements.append(title)
-                elements.append(Spacer(1, 15))
+                elements.append(Spacer(1, 20))
 
-                # Style teks agar terbungkus rapi di dalam sel tabel tanpa keluar jalur
-                cell_text_style = ParagraphStyle(
-                    'CellText',
-                    parent=styles['Normal'],
-                    fontName='Helvetica',
-                    fontSize=9,
-                    leading=12,
-                    textColor=colors.HexColor('#333333')
-                )
-                
-                cell_header_style = ParagraphStyle(
-                    'CellHeader',
-                    parent=styles['Normal'],
-                    fontName='Helvetica-Bold',
-                    fontSize=9,
-                    leading=12,
-                    textColor=colors.whitesmoke,
-                    alignment=1 # Center
-                )
-
-                # Format Tabel Laporan dengan lebar pas proporsional (Total lebar 552 pt = lebar efektif halaman letter)
-                table_data = [[
-                    Paragraph("No", cell_header_style), 
-                    Paragraph("Tanggal & Waktu", cell_header_style), 
-                    Paragraph("Alamat / Lokasi Deteksi", cell_header_style), 
-                    Paragraph("Keterangan", cell_header_style), 
-                    Paragraph("Dokumentasi", cell_header_style)
-                ]]
-
+                table_data = [["No", "Tanggal & Waktu", "Alamat / Lokasi Deteksi", "Keterangan", "Dokumentasi"]]
                 for idx, data in enumerate(report_data):
-                    # Gambar dokumentasi diperkecil agar pas dan proporsional di dalam tabel
-                    img_pdf = RLImage(data['img_path'], width=1.4 * inch, height=1.75 * inch)
-                    
-                    row = [
-                        Paragraph(str(idx + 1), cell_text_style),
-                        Paragraph(data['waktu'], cell_text_style),
-                        Paragraph(data['lokasi'].replace('\n', '<br/>'), cell_text_style), # Menggunakan <br/> agar rapi di PDF
-                        Paragraph(data['keterangan'], cell_text_style),
-                        img_pdf
-                    ]
+                    img_pdf = RLImage(data['img_path'], width=1.6 * inch, height=2.0 * inch)
+                    row = [str(idx + 1), data['waktu'], data['lokasi'], data['keterangan'], img_pdf]
                     table_data.append(row)
 
-                # Lebar kolom total persis pas dengan batas halaman letter (552 pt)
-                t = Table(table_data, colWidths=[25, 95, 182, 85, 165])
+                t = Table(table_data, colWidths=[30, 95, 130, 90, 130])
                 t.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#002147')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                     ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
                     ('ALIGN', (0, 1), (0, -1), 'CENTER'),
                     ('ALIGN', (1, 1), (3, -1), 'LEFT'),
                     ('ALIGN', (4, 1), (4, -1), 'CENTER'),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('TOPPADDING', (0, 0), (-1, -1), 8),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 6),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
                     ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
                 ]))
                 elements.append(t)
                 doc.build(elements)
