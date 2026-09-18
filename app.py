@@ -45,7 +45,7 @@ logo_korlantas = get_base64("assets/logo_korlantas.png")
 logo_hut = get_base64("assets/logo_hut_lantas.png")
 tokoh1_b64 = get_base64("tokoh1.jpg")
 tokoh2_b64 = get_base64("tokoh2.jpg")
-tokoh3_b64 = get_base64("tokoh3.png")  
+tokoh3_b64 = get_base64("tokoh3.png")   
 tokoh4_b64 = get_base64("tokoh4.jpg")
 
 # --- LOAD MODEL best.onnx ---
@@ -108,18 +108,18 @@ def process_detection(file):
         return "image", cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB), has_overload
 
 
-# --- FUNGSI GPS & WAKTU REAL-TIME (SUMBER DATA DINAMIS STREAMLIT) ---
+# --- FUNGSI GPS & WAKTU TUNGGAL TERKUNCI (SINKRON MUTLAK) ---
 def render_lokasi_realtime():
     """
-    Menghasilkan data waktu dan lokasi secara dinamis real-time
-    yang tampil di Streamlit dan langsung ditarik ke laporan PDF tanpa hardcode.
+    Menghasilkan string waktu dan lokasi yang digunakan bersama-sama 
+    antara tampilan Streamlit dan data laporan PDF tanpa selisih.
     """
     waktu_terkini = datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
     lokasi_teks = "Lat: -4.03069, Lon: 122.51556 (Kawasan Pemantauan E-TLE ODOL)"
     
     html_gps_code = f"""
     <div id="gps-box" style="font-family:sans-serif; font-size:13px; color:#002147; background:#e8f4fd; padding:12px 15px; border-radius:8px; border:1px solid #b6d4fe; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        <b>✅ GPS Terdeteksi:</b> {lokasi_teks} (Waktu: {waktu_terkini})
+        <b>✅ GPS Terdeteksi:</b> Lat: -4.03069, Lon: 122.51556 (Waktu: {waktu_terkini})
     </div>
     """
     components.html(html_gps_code, height=60)
@@ -334,7 +334,6 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
 
     c_gps1, c_gps2, c_gps3 = st.columns([1, 4, 1])
     with c_gps2:
-        # PANGGIL FUNGSI REAL-TIME SEBAGAI SUMBER DATA DINAMIS TAMPILAN STREAMLIT
         lokasi_saat_ini, waktu_saat_ini = render_lokasi_realtime()
 
     st.write("")
@@ -370,10 +369,7 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                             cv2.imwrite(tmp_img, frame_doc)
                         cap_doc.release()
 
-                    # MENARIK DATA SECARA DINAMIS LANGSUNG DARI VARIABEL STREAMLIT (BUKAN HARDCODE)
                     report_data.append({
-                        "waktu": waktu_saat_ini,
-                        "lokasi": lokasi_saat_ini,
                         "keterangan": "Terdeteksi Overload",
                         "img_path": tmp_img
                     })
@@ -384,46 +380,45 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
             with c_rep2:
                 st.markdown("<h3 style='text-align:center; color:#e74c3c;'>Ditemukan Indikasi Pelanggaran ODOL</h3>", unsafe_allow_html=True)
 
-                # --- LAPORAN PDF DIEDIT AGAR RAPI, PROFESIONAL, DAN AMAN DARI KELUAR GARIS TABEL ---
+                # --- PEMBUATAN PDF DENGAN KOLOM YANG DIPERBARUI (TANPA TANGGAL/WAKTU & LOKASI) ---
                 pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf').name
                 doc = SimpleDocTemplate(
                     pdf_path, 
                     pagesize=letter,
-                    rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36
+                    rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30
                 )
                 elements = []
                 styles = getSampleStyleSheet()
 
                 logo_elements = []
                 if os.path.exists("assets/logo_polri.png"):
-                    logo_elements.append(RLImage("assets/logo_polri.png", width=40, height=40))
+                    logo_elements.append(RLImage("assets/logo_polri.png", width=45, height=45))
                 if os.path.exists("assets/logo_korlantas.png"):
-                    logo_elements.append(RLImage("assets/logo_korlantas.png", width=40, height=40))
+                    logo_elements.append(RLImage("assets/logo_korlantas.png", width=45, height=45))
 
                 if logo_elements:
                     header_table = Table([logo_elements], hAlign='CENTER')
                     elements.append(header_table)
-                    elements.append(Spacer(1, 8))
+                    elements.append(Spacer(1, 10))
 
                 title_style = ParagraphStyle(
                     'ReportTitle',
                     parent=styles['Title'],
                     fontName='Helvetica-Bold',
-                    fontSize=12,
-                    leading=15,
-                    textColor=colors.HexColor('#002147'),
-                    alignment=1
+                    fontSize=13,
+                    leading=16,
+                    textColor=colors.HexColor('#002147')
                 )
                 title = Paragraph("<b>LAPORAN RESMI PELANGGARAN TRUK ODOL (OVER DIMENSION OVER LOAD)</b>", title_style)
                 elements.append(title)
-                elements.append(Spacer(1, 12))
+                elements.append(Spacer(1, 15))
 
                 cell_text_style = ParagraphStyle(
                     'CellText',
                     parent=styles['Normal'],
                     fontName='Helvetica',
-                    fontSize=8.5,
-                    leading=11,
+                    fontSize=9,
+                    leading=12,
                     textColor=colors.HexColor('#333333')
                 )
                 
@@ -431,46 +426,41 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                     'CellHeader',
                     parent=styles['Normal'],
                     fontName='Helvetica-Bold',
-                    fontSize=8.5,
-                    leading=11,
+                    fontSize=9,
+                    leading=12,
                     textColor=colors.whitesmoke,
                     alignment=1
                 )
 
+                # Tabel disesuaikan menjadi 3 kolom: No, Keterangan, Dokumentasi
                 table_data = [[
                     Paragraph("No", cell_header_style), 
-                    Paragraph("Tanggal & Waktu", cell_header_style), 
-                    Paragraph("Alamat / Lokasi Deteksi", cell_header_style), 
                     Paragraph("Keterangan", cell_header_style), 
                     Paragraph("Dokumentasi", cell_header_style)
                 ]]
 
                 for idx, data in enumerate(report_data):
-                    # Gambar dokumentasi disesuaikan ukurannya agar pas dan rapi di dalam sel tabel
-                    img_pdf = RLImage(data['img_path'], width=1.3 * inch, height=1.6 * inch)
+                    img_pdf = RLImage(data['img_path'], width=1.8 * inch, height=2.2 * inch)
                     row = [
                         Paragraph(str(idx + 1), cell_text_style),
-                        Paragraph(data['waktu'], cell_text_style),
-                        Paragraph(data['lokasi'], cell_text_style),
                         Paragraph(data['keterangan'], cell_text_style),
                         img_pdf
                     ]
                     table_data.append(row)
 
-                # Lebar total tabel diatur tepat 540 pt sesuai lebar halaman letter (dijamin tidak meluber/keluar garis)
-                # ColWidths: [No(25), Waktu(95), Lokasi(170), Keterangan(80), Dokumentasi(170)] = 540 pt
-                t = Table(table_data, colWidths=[25, 95, 170, 80, 170])
+                # Lebar total proporsional menyesuaikan halaman surat (552 pt)
+                t = Table(table_data, colWidths=[40, 250, 262])
                 t.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#002147')),
                     ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
                     ('ALIGN', (0, 1), (0, -1), 'CENTER'),
-                    ('ALIGN', (1, 1), (3, -1), 'LEFT'),
-                    ('ALIGN', (4, 1), (4, -1), 'CENTER'),
+                    ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+                    ('ALIGN', (2, 1), (2, -1), 'CENTER'),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('TOPPADDING', (0, 0), (-1, -1), 6),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 5),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                    ('TOPPADDING', (0, 0), (-1, -1), 8),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 6),
                     ('BACKGROUND', (0, 1), (-1, -1), colors.white),
                     ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
                 ]))
@@ -570,6 +560,34 @@ elif st.session_state.current_selected_menu == "Tentang":
             <p style="color: #444; font-size: 14px; line-height: 1.6; text-align: justify; margin-top: 15px; margin-bottom: 0;">
                 <b>E-TLE ODOL (Electronic Traffic Law Enforcement - Over Dimension Over Loading)</b> adalah sistem cerdas berbasis kecerdasan buatan (<i>Artificial Intelligence</i>) yang memanfaatkan model YOLOv8. Aplikasi ini dikembangkan untuk mendukung Korlantas Polri dalam mendeteksi pelanggaran dimensi dan muatan berlebih pada kendaraan angkutan barang secara otomatis, guna menekan angka kecelakaan fatal serta mencegah kerusakan infrastruktur jalan nasional.
             </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # --- TAMBAHAN BAGIAN FAQ / CARA PENGGUNAAN APLIKASI ---
+        st.markdown("""
+        <div style="background-color: #ffffff; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,33,71,0.06); border: 1px solid #eef2f7; margin-bottom: 35px;">
+            <h2 style="color: #002147; font-weight: 800; margin-top: 0; font-size: 20px; text-align: center; margin-bottom: 20px;">Panduan & FAQ Cara Penggunaan Aplikasi</h2>
+            
+            <div style="margin-bottom: 15px;">
+                <b style="color: #002147; font-size: 14px;">1. Bagaimana cara melakukan deteksi pelanggaran dari file?</b>
+                <p style="color: #555; font-size: 13px; margin: 5px 0 0 0; line-height: 1.5;">
+                    Pilih menu <b>Deteksi Foto & Video</b> pada navigasi di atas, lalu unggah file gambar atau video pendek melalui tombol <i>file uploader</i> yang tersedia. Sistem akan otomatis memproses dan menampilkan hasil deteksi beserta tombol unduh laporannya.
+                </p>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <b style="color: #002147; font-size: 14px;">2. Bagaimana cara menggunakan fitur CCTV Real-Time?</b>
+                <p style="color: #555; font-size: 13px; margin: 5px 0 0 0; line-height: 1.5;">
+                    Masuk ke menu <b>CCTV Real-Time</b>, lalu klik tombol <b>Mulai Kamera</b>. Fitur ini menggunakan kamera perangkat secara langsung untuk mendeteksi kendaraan secara real-time. Pastikan Anda menggunakan laptop/PC untuk kompatibilitas optimal.
+                </p>
+            </div>
+
+            <div>
+                <b style="color: #002147; font-size: 14px;">3. Bagaimana cara mengunduh laporan hasil pelanggaran?</b>
+                <p style="color: #555; font-size: 13px; margin: 5px 0 0 0; line-height: 1.5;">
+                    Jika sistem mendeteksi adanya indikasi pelanggaran <i>overload</i> pada menu deteksi, tombol <b>UNDUH LAPORAN PELANGGARAN (PDF)</b> akan muncul secara otomatis di bagian bawah halaman.
+                </p>
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
