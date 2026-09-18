@@ -7,15 +7,20 @@ import os
 import glob
 import random
 import time
+import datetime
 from PIL import Image
 import pandas as pd
 import cv2
 import numpy as np
 import tempfile
 from ultralytics import YOLO
+
+# Tambahan library untuk ReportLab PDF
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+from reportlab.lib.units import inch
 
 # --- 1. KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="E-TLE ODOL | Korlantas Polri", page_icon="🚨", layout="wide", initial_sidebar_state="collapsed")
@@ -54,6 +59,7 @@ model_onnx = load_main_model()
 def process_detection(file):
     file_bytes = file.getvalue()
     file_ext = file.name.split('.')[-1].lower()
+    has_overload = False # Menandai apakah terdeteksi overload
     
     if file_ext in ['mp4', 'avi', 'mov', 'mkv', 'mpeg4']:
         with tempfile.NamedTemporaryFile(delete=False, suffix='.'+file_ext) as tfile_in:
@@ -77,21 +83,26 @@ def process_detection(file):
             if not ret: break
             
             results = model_onnx.predict(frame, conf=0.25, verbose=False)
+            if len(results[0].boxes) > 0:
+                has_overload = True
+                
             frame_plotted = results[0].plot()
             out.write(frame_plotted)
             frameCount += 1
             
         cap.release()
         out.release()
-        return "video", temp_out
+        return "video", temp_out, has_overload
     else:
         nparr = np.frombuffer(file_bytes, np.uint8)
         img_array = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
         results = model_onnx.predict(img_array, conf=0.25, verbose=False)
+        if len(results[0].boxes) > 0:
+            has_overload = True
+            
         res_plotted = results[0].plot()
-        
-        return "image", cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB)
+        return "image", cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB), has_overload
 
 # --- 2. CSS CUSTOM RESPONSIF UNTUK HP & LAPTOP ---
 st.markdown("""
@@ -301,7 +312,7 @@ if st.session_state.current_selected_menu == "Beranda":
         st.markdown("""<div class="news-card"><div class="news-title">Daftar Kecelakaan yang Disebabkan Truk ODOL</div><div class="news-excerpt">Catatan insiden fatal di berbagai ruas jalan nasional akibat tonase berlebih...</div><a href="https://otomotif.kompas.com/read/2025/06/09/171200015/daftar-kecelakaan-yang-disebabkan-truk-odol" target="_blank" style="color:#f39c12; font-weight:bold; text-decoration:none;">Baca Selengkapnya →</a></div>""", unsafe_allow_html=True)
 
 # ==========================================
-# HALAMAN 2: DETEKSI FOTO & VIDEO
+# HALAMAN 2: DETEKSI FOTO & VIDEO (YANG DI-MODIFIKASI)
 # ==========================================
 elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
     st.markdown(f"""
@@ -316,21 +327,118 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
     """, unsafe_allow_html=True)
 
     st.markdown("<div style='padding: 20px 15px;'>", unsafe_allow_html=True)
-    st.info("**Panduan Singkat:** Unggah foto atau video pendek (format JPG, PNG, MP4) yang memperlihatkan truk di jalan untuk mendeteksi pelanggaran secara otomatis.")
+    st.info("**Panduan Singkat:** Unggah foto atau video pendek (format JPG, PNG, MP4). Anda bisa mengunggah **lebih dari 1 file sekaligus** untuk mendeteksi pelanggaran secara otomatis.")
     
     c_up1, c_up2, c_up3 = st.columns([1, 4, 1])
     with c_up2:
-        uploaded_file = st.file_uploader("Pilih file foto/video", type=['jpg', 'jpeg', 'png', 'webp', 'mp4', 'avi', 'mov', 'mpeg4'])
+        # Ditambahkan accept_multiple_files=True
+        uploaded_files = st.file_uploader("Pilih file foto/video", type=['jpg', 'jpeg', 'png', 'webp', 'mp4', 'avi', 'mov', 'mpeg4'], accept_multiple_files=True)
         
-    if uploaded_file is not None:
-        c_res1, c_res2, c_res3 = st.columns([1, 4, 1])
-        with c_res2:
-            with st.spinner("Memproses deteksi AI..."):
-                ftype, res_file = process_detection(uploaded_file)
-                if ftype == "video":
-                    st.video(res_file)
-                else:
-                    st.image(res_file, use_container_width=True)
+    if uploaded_files: # Jika list tidak kosong
+        report_data = [] # Untuk menyimpan data bagi PDF
+        
+        for file_idx, uploaded_file in enumerate(uploaded_files):
+            c_res1, c_res2, c_res3 = st.columns([1, 4, 1])
+            with c_res2:
+                st.markdown(f"<h4 style='color:#002147; margin-top:20px;'>Hasil: {uploaded_file.name}</h4>", unsafe_allow_html=True)
+                with st.spinner(f"Memproses {uploaded_file.name}..."):
+                    ftype, res_file, has_overload = process_detection(uploaded_file)
+                    
+                    if ftype == "video":
+                        st.video(res_file)
+                        with open(res_file, "rb") as f:
+                            st.download_button("📥 Unduh Video Hasil Deteksi", f, file_name=f"deteksi_{uploaded_file.name}", mime="video/webm", key=f"dl_vid_{file_idx}")
+                    else:
+                        st.image(res_file, use_container_width=True)
+                        # Mengubah RGB kembali ke BGR untuk menyimpan byte gambar
+                        is_success, buffer = cv2.imencode(".jpg", cv2.cvtColor(res_file, cv2.COLOR_RGB2BGR))
+                        img_bytes = buffer.tobytes()
+                        
+                        # Tombol Download per gambar
+                        st.download_button("📥 Unduh Gambar Ini", img_bytes, file_name=f"deteksi_{uploaded_file.name}", mime="image/jpeg", key=f"dl_img_{file_idx}")
+                        
+                        # Jika ada overload terdeteksi, masukkan ke data laporan
+                        if has_overload:
+                            tmp_img = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg').name
+                            cv2.imwrite(tmp_img, cv2.cvtColor(res_file, cv2.COLOR_RGB2BGR))
+                            
+                            waktu_sekarang = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                            lokasi_dummy = "Jalan Trans Sulawesi, Kendari\n(Lat: -3.99, Lng: 122.51)"
+                            
+                            report_data.append({
+                                "waktu": waktu_sekarang,
+                                "lokasi": lokasi_dummy,
+                                "keterangan": "Terdeteksi Overload",
+                                "img_path": tmp_img
+                            })
+                            
+        # JIKA ADA DATA OVERLOAD, BUAT TOMBOL UNDUH LAPORAN PDF
+        if len(report_data) > 0:
+            st.divider()
+            c_rep1, c_rep2, c_rep3 = st.columns([1, 4, 1])
+            with c_rep2:
+                st.markdown("<h3 style='text-align:center; color:#e74c3c;'>Ditemukan Indikasi Pelanggaran ODOL</h3>", unsafe_allow_html=True)
+                
+                # Proses pembuatan PDF
+                pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf').name
+                doc = SimpleDocTemplate(pdf_path, pagesize=letter)
+                elements = []
+                styles = getSampleStyleSheet()
+                
+                # Setup header logo dari base64 ke temp file untuk ReportLab
+                tmp_logo1 = tempfile.NamedTemporaryFile(delete=False, suffix='.png').name
+                tmp_logo2 = tempfile.NamedTemporaryFile(delete=False, suffix='.png').name
+                if logo_polri:
+                    with open(tmp_logo1, "wb") as fh: fh.write(base64.b64decode(logo_polri))
+                if logo_korlantas:
+                    with open(tmp_logo2, "wb") as fh: fh.write(base64.b64decode(logo_korlantas))
+                
+                # Tabel Header (Logo)
+                try:
+                    header_data = [[RLImage(tmp_logo1, width=50, height=50), RLImage(tmp_logo2, width=50, height=50)]]
+                    header_table = Table(header_data, colWidths=[60, 60], hAlign='CENTER')
+                    elements.append(header_table)
+                except:
+                    pass # Bypass jika logo tidak terbaca dengan baik
+                    
+                elements.append(Spacer(1, 12))
+                title = Paragraph("<para align=center><b>LAPORAN PELANGGARAN TRUK ODOL (OVER DIMENSION OVER LOAD)</b></para>", styles['Title'])
+                elements.append(title)
+                elements.append(Spacer(1, 20))
+                
+                # Format Tabel Laporan
+                table_data = [["No", "Tanggal & Waktu", "Alamat / Lokasi Deteksi", "Keterangan", "Dokumentasi"]]
+                
+                for idx, data in enumerate(report_data):
+                    # Resize gambar menjadi 4x5 ratio (lebar 1.6 inch, tinggi 2.0 inch)
+                    img_pdf = RLImage(data['img_path'], width=1.6*inch, height=2.0*inch)
+                    row = [str(idx + 1), data['waktu'], data['lokasi'], data['keterangan'], img_pdf]
+                    table_data.append(row)
+                
+                # Styling Tabel PDF
+                t = Table(table_data, colWidths=[30, 95, 130, 90, 130])
+                t.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#002147')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ]))
+                elements.append(t)
+                doc.build(elements)
+                
+                # Tombol Download
+                with open(pdf_path, "rb") as pdf_file:
+                    st.download_button(
+                        label="📄 UNDUH LAPORAN PELANGGARAN (PDF)",
+                        data=pdf_file,
+                        file_name="Laporan_Pelanggaran_ODOL.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ==========================================
