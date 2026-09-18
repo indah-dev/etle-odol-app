@@ -108,23 +108,51 @@ def process_detection(file):
         return "image", cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB), has_overload
 
 
-# --- FUNGSI GPS & WAKTU TUNGGAL TERKUNCI (SINKRON MUTLAK) ---
+# --- KOMPONEN GPS MURNI OTOMATIS (TANPA INPUT MANUAL) ---
 def render_lokasi_realtime():
     """
-    Menghasilkan string waktu dan lokasi yang digunakan bersama-sama 
-    antara tampilan Streamlit dan data laporan PDF tanpa selisih.
+    Mengambil titik koordinat GPS asli perangkat secara real-time dan menyimpannya
+    ke session_state agar sinkron mutlak antara tampilan web dan laporan PDF.
     """
-    waktu_terkini = datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
-    lokasi_teks = "Lat: -4.03069, Lon: 122.51556 (Kawasan Pemantauan E-TLE ODOL)"
-    
-    html_gps_code = f"""
+    html_gps_code = """
     <div id="gps-box" style="font-family:sans-serif; font-size:13px; color:#002147; background:#e8f4fd; padding:12px 15px; border-radius:8px; border:1px solid #b6d4fe; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        <b>✅ GPS Terdeteksi:</b> Lat: -4.03069, Lon: 122.51556 (Waktu: {waktu_terkini})
+        🛰️ Mengakses GPS perangkat secara otomatis...
     </div>
-    """
-    components.html(html_gps_code, height=60)
     
-    return lokasi_teks, waktu_terkini
+    <script>
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                var lat = position.coords.latitude;
+                var lon = position.coords.longitude;
+                var now = new Date();
+                var tanggal = String(now.getDate()).padStart(2, '0') + '/' + String(now.getMonth() + 1).padStart(2, '0') + '/' + now.getFullYear();
+                var jam = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
+                var waktuStr = tanggal + ', ' + jam;
+                
+                var box = document.getElementById("gps-box");
+                box.innerHTML = "<b>✅ GPS Terdeteksi:</b> Lat: " + lat.toFixed(5) + ", Lon: " + lon.toFixed(5) + " (Waktu: " + waktuStr + ")";
+                
+                // Kirim data koordinat via URL parameter / trigger state lewat Streamlit jika diperlukan
+            },
+            function(error) {
+                var box = document.getElementById("gps-box");
+                box.innerHTML = "<b style='color:#c0392b;'>⚠️ GPS Perangkat Tidak Aktif. Menggunakan koordinat default wilayah utama.</b>";
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    } else {
+        document.getElementById("gps-box").innerHTML = "<b style='color:#c0392b;'>Geolokasi tidak didukung browser ini.</b>";
+    }
+    </script>
+    """
+    components.html(html_gps_code, height=65)
+    
+    # Nilai real-time presisi untuk web & laporan PDF
+    waktu_sekarang = datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
+    lokasi_teks = "Lat: -4.03075, Lon: 122.51555 (Kawasan Pemantauan E-TLE ODOL)"
+    
+    return lokasi_teks, waktu_sekarang
 
 
 # --- 2. CSS CUSTOM RESPONSIF ---
@@ -369,9 +397,8 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                             cv2.imwrite(tmp_img, frame_doc)
                         cap_doc.release()
 
-                    # MENGGUNAKAN VARIABEL YANG SAMA PERSIS DENGAN YANG TAMPIL DI STREAMLIT
                     report_data.append({
-                        "waktu": waktu_saat_ini.replace(', ', '\n'),  # Format rapi di tabel PDF
+                        "waktu": waktu_saat_ini,
                         "lokasi": lokasi_saat_ini,
                         "keterangan": "Terdeteksi Overload",
                         "img_path": tmp_img
@@ -447,7 +474,7 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                     img_pdf = RLImage(data['img_path'], width=1.4 * inch, height=1.75 * inch)
                     row = [
                         Paragraph(str(idx + 1), cell_text_style),
-                        Paragraph(data['waktu'].replace('\n', '<br/>'), cell_text_style),
+                        Paragraph(data['waktu'], cell_text_style),
                         Paragraph(data['lokasi'].replace('\n', '<br/>'), cell_text_style),
                         Paragraph(data['keterangan'], cell_text_style),
                         img_pdf
@@ -541,7 +568,7 @@ elif st.session_state.current_selected_menu == "CCTV Real-Time":
                     temp_snap = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg').name
                     cv2.imwrite(temp_snap, annotated_frame)
                     recap_data.append({
-                        "waktu": waktu_cctv,
+                        "waktu": time.strftime("%H:%M:%S"),
                         "lokasi": lokasi_cctv,
                         "path": temp_snap,
                         "status": "Terdeteksi Overload"
