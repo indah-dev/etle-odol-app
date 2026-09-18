@@ -385,7 +385,6 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                             cv2.imwrite(tmp_img, frame_doc)
                         cap_doc.release()
 
-                    # MENGAMBIL DATA WAKTU DAN LOKASI REAL-TIME UNTUK LAPORAN PDF
                     report_data.append({
                         "waktu": waktu_saat_ini,
                         "lokasi": lokasi_saat_ini,
@@ -470,7 +469,6 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                     ]
                     table_data.append(row)
 
-                # Lebar total pas 552 pt (No:25, Waktu:95, Lokasi:175, Keterangan:80, Dokumentasi:177)
                 t = Table(table_data, colWidths=[25, 95, 175, 80, 177])
                 t.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#002147')),
@@ -586,63 +584,44 @@ elif st.session_state.current_selected_menu == "Tentang":
         </div>
         """, unsafe_allow_html=True)
 
-        # --- FAQ 10 PERTANYAAN (DIPERBAIKI) ---
-        faq_html = """
+        # --- FAQ 10 PERTANYAAN (DIPERBAIKI MENGGUNAKAN MARKDOWN STREAMLIT MURNI) ---
+        st.markdown("""
         <div style="background-color: #ffffff; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,33,71,0.06); border: 1px solid #eef2f7; margin-bottom: 35px;">
             <h2 style="color: #002147; font-weight: 800; margin-top: 0; font-size: 20px; text-align: center; margin-bottom: 25px;">Panduan & FAQ 10 Pertanyaan Umum Aplikasi E-TLE ODOL</h2>
-            
-            <div style="margin-bottom: 18px;">
-                <b style="color: #002147; font-size: 14px;">1. Apa itu model YOLOv8 yang digunakan dalam aplikasi ini?</b>
-                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Model YOLOv8 (format ONNX) adalah arsitektur deep learning mutakhir untuk object detection yang mampu mendeteksi objek kendaraan dan pelanggaran muatan berlebih secara akurat dan real-time.</p>
-            </div>
-
-            <div style="margin-bottom: 18px;">
-                <b style="color: #002147; font-size: 14px;">2. Bagaimana cara kerja sistem deteksi otomatis pada foto dan video?</b>
-                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Pengguna cukup mengunggah file melalui menu 'Deteksi Foto & Video'. Sistem akan memproses frame demi frame menggunakan model AI untuk mendeteksi apakah truk mengalami pelanggaran ODOL.</p>
-            </div>
-
-            <div style="margin-bottom: 18px;">
-                <b style="color: #002147; font-size: 14px;">3. Bagaimana cara mengaktifkan dan menggunakan fitur CCTV Real-Time?</b>
-                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Buka menu 'CCTV Real-Time', lalu klik tombol 'Mulai Kamera'. Sistem akan mengaktifkan kamera perangkat Anda untuk melakukan pemantauan dan analisis langsung secara live.</p>
-            </div>
-
-            <div style="margin-bottom: 18px;">
-                <b style="color: #002147; font-size: 14px;">4. Bagaimana sistem mengambil data waktu dan lokasi GPS secara real-time?</b>
-                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Aplikasi menggunakan fungsi integrasi JavaScript dan modul waktu Python untuk menampilkan hari, tanggal, jam, serta koordinat secara sinkron dan otomatis.</p>
-            </div>
-
-            <div style="margin-bottom: 18px;">
-                <b style="color: #002147; font-size: 14px;">5. Format file apa saja yang didukung oleh menu deteksi?</b>
-                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Aplikasi mendukung berbagai format gambar populer (JPG, JPEG, PNG, WEBP) serta format video standar (MP4, AVI, MOV, MKV, MPEG4).</p>
-            </div>
-
-            <div style="margin-bottom: 18px;">
-                <b style="color: #002147; font-size: 14px;">6. Bagaimana cara mengunduh laporan hasil penindakan pelanggaran?</b>
-                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Jika sistem mendeteksi adanya pelanggaran overload, tombol unduh laporan berformat PDF akan muncul secara otomatis di halaman deteksi.</p>
-            </div>
-
-            <div style="margin-bottom: 18px;">
-                <b style="color: #002147; font-size: 14px;">7. Apa saja informasi yang dimuat di dalam dokumen laporan PDF?</b>
-                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Laporan PDF resmi mencakup kop logo instansi, judul penindakan, nomor urut, tanggal & waktu real-time, alamat/lokasi deteksi, keterangan pelanggaran, serta dokumentasi gambar bukti hasil deteksi AI.</p>
-            </div>
-
-            <div style="margin-bottom: 18px;">
-                <b style="color: #002147; font-size: 14px;">8. Perangkat apa yang disarankan untuk menjalankan aplikasi ini?</b>
-                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Aplikasi dapat diakses melalui laptop, PC, maupun smartphone. Namun, fitur CCTV Real-Time disarankan menggunakan komputer/laptop dengan webcam aktif.</p>
-            </div>
-
-            <div style="margin-bottom: 18px;">
-                <b style="color: #002147; font-size: 14px;">9. Apakah model AI dapat mendeteksi selain pelanggaran muatan berlebih?</b>
-                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Model dilatih khusus berfokus pada deteksi objek kelas overload (dimensi dan muatan berlebih) untuk mendukung penegakan hukum lalu lintas.</p>
-            </div>
-
-            <div>
-                <b style="color: #002147; font-size: 14px;">10. Siapa pengembang di balik pembuatan sistem aplikasi E-TLE ODOL ini?</b>
-                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Aplikasi ini dikembangkan oleh Indah Lestari, mahasiswi Program Studi Teknik Informatika dari Universitas Halu Oleo (UHO).</p>
-            </div>
         </div>
-        """
-        st.markdown(faq_html, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+
+        faq_list = [
+            ("1. Apa itu model YOLOv8 yang digunakan dalam aplikasi ini?", 
+             "Model YOLOv8 (format ONNX) adalah arsitektur deep learning mutakhir untuk object detection yang mampu mendeteksi objek kendaraan dan pelanggaran muatan berlebih secara akurat dan real-time."),
+            ("2. Bagaimana cara kerja sistem deteksi otomatis pada foto dan video?", 
+             "Pengguna cukup mengunggah file melalui menu 'Deteksi Foto & Video'. Sistem akan memproses frame demi frame menggunakan model AI untuk mendeteksi apakah truk mengalami pelanggaran ODOL."),
+            ("3. Bagaimana cara mengaktifkan dan menggunakan fitur CCTV Real-Time?", 
+             "Buka menu 'CCTV Real-Time', lalu klik tombol 'Mulai Kamera'. Sistem akan mengaktifkan kamera perangkat Anda untuk melakukan pemantauan dan analisis langsung secara live."),
+            ("4. Bagaimana sistem mengambil data waktu dan lokasi GPS secara real-time?", 
+             "Aplikasi menggunakan fungsi integrasi JavaScript dan modul waktu Python untuk menampilkan hari, tanggal, jam, serta koordinat secara sinkron dan otomatis."),
+            ("5. Format file apa saja yang didukung oleh menu deteksi?", 
+             "Aplikasi mendukung berbagai format gambar populer (JPG, JPEG, PNG, WEBP) serta format video standar (MP4, AVI, MOV, MKV, MPEG4)."),
+            ("6. Bagaimana cara mengunduh laporan hasil penindakan pelanggaran?", 
+             "Jika sistem mendeteksi adanya pelanggaran overload, tombol unduh laporan berformat PDF akan muncul secara otomatis di halaman deteksi."),
+            ("7. Apa saja informasi yang dimuat di dalam dokumen laporan PDF?", 
+             "Laporan PDF resmi mencakup kop logo instansi, judul penindakan, nomor urut, tanggal & waktu real-time, alamat/lokasi deteksi, keterangan pelanggaran, serta dokumentasi gambar bukti hasil deteksi AI."),
+            ("8. Perangkat apa yang disarankan untuk menjalankan aplikasi ini?", 
+             "Aplikasi dapat diakses melalui laptop, PC, maupun smartphone. Namun, fitur CCTV Real-Time disarankan menggunakan komputer/laptop dengan webcam aktif."),
+            ("9. Apakah model AI dapat mendeteksi selain pelanggaran muatan berlebih?", 
+             "Model dilatih khusus berfokus pada deteksi objek kelas overload (dimensi dan muatan berlebih) untuk mendukung penegakan hukum lalu lintas."),
+            ("10. Siapa pengembang di balik pembuatan sistem aplikasi E-TLE ODOL ini?", 
+             "Aplikasi ini dikembangkan oleh Indah Lestari, mahasiswi Program Studi Teknik Informatika dari Universitas Halu Oleo (UHO).")
+        ]
+
+        for q, a in faq_list:
+            with st.container():
+                st.markdown(f"""
+                <div style="background-color: #ffffff; padding: 20px 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #eef2f7; margin-bottom: 15px;">
+                    <div style="color: #002147; font-weight: bold; font-size: 14px; margin-bottom: 6px;">{q}</div>
+                    <div style="color: #555555; font-size: 13px; line-height: 1.5;">{a}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
     st.markdown("<h2 style='text-align:center; color:#002147; font-weight:800; margin-bottom: 25px; font-size:22px;'>Tentang Pengembang Sistem</h2>", unsafe_allow_html=True)
     img_b64_str = f'data:image/jpeg;base64,{img6}' if img6 else ''
