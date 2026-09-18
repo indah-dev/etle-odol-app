@@ -108,22 +108,44 @@ def process_detection(file):
         return "image", cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB), has_overload
 
 
-# --- FUNGSI GPS & WAKTU TUNGGAL TERKUNCI (SINKRON MUTLAK) ---
+# --- FUNGSI GPS & WAKTU REAL-TIME JAVASCRIPT & PYTHON SINKRON ---
 def render_lokasi_realtime():
-    """
-    Menghasilkan string waktu dan lokasi yang digunakan bersama-sama 
-    antara tampilan Streamlit dan data laporan PDF tanpa selisih.
-    """
-    waktu_terkini = datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
-    lokasi_teks = "Lat: -4.03069, Lon: 122.51556 (Kawasan Pemantauan E-TLE ODOL)"
+    waktu_sekarang = datetime.datetime.now()
+    hari_list = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
+    nama_hari = hari_list[waktu_sekarang.weekday()]
+    waktu_terkini = f"{nama_hari}, {waktu_sekarang.strftime('%d/%m/%Y, %H:%M:%S')}"
+    lokasi_teks = f"Lat: -4.03069, Lon: 122.51556 (Waktu: {waktu_terkini})"
     
     html_gps_code = f"""
     <div id="gps-box" style="font-family:sans-serif; font-size:13px; color:#002147; background:#e8f4fd; padding:12px 15px; border-radius:8px; border:1px solid #b6d4fe; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        <b>✅ GPS Terdeteksi:</b> Lat: -4.03069, Lon: 122.51556 (Waktu: {waktu_terkini})
+        <b>✅ GPS & Waktu Terdeteksi:</b> Lat: -4.03069, Lon: 122.51556 | <b>Waktu:</b> {waktu_terkini}
     </div>
+    
+    <script>
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                var lat = position.coords.latitude.toFixed(5);
+                var lon = position.coords.longitude.toFixed(5);
+                var days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+                var now = new Date();
+                var hari = days[now.getDay()];
+                var tanggal = String(now.getDate()).padStart(2, '0') + '/' + String(now.getMonth() + 1).padStart(2, '0') + '/' + now.getFullYear();
+                var jam = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
+                var waktuStr = hari + ', ' + tanggal + ', ' + jam;
+                
+                var box = document.getElementById("gps-box");
+                box.innerHTML = "<b>✅ GPS & Waktu Terdeteksi:</b> Lat: " + lat + ", Lon: " + lon + " | <b>Waktu:</b> " + waktuStr;
+            },
+            function(error) {
+                // Menggunakan fallback waktu server jika GPS diblokir
+            },
+            {{ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }}
+        );
+    }
+    </script>
     """
     components.html(html_gps_code, height=60)
-    
     return lokasi_teks, waktu_terkini
 
 
@@ -380,7 +402,7 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
             with c_rep2:
                 st.markdown("<h3 style='text-align:center; color:#e74c3c;'>Ditemukan Indikasi Pelanggaran ODOL</h3>", unsafe_allow_html=True)
 
-                # --- PEMBUATAN PDF DENGAN KOLOM YANG DIPERBARUI (TANPA TANGGAL/WAKTU & LOKASI) ---
+                # --- PEMBUATAN PDF DENGAN 3 KOLOM ---
                 pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf').name
                 doc = SimpleDocTemplate(
                     pdf_path, 
@@ -432,7 +454,6 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                     alignment=1
                 )
 
-                # Tabel disesuaikan menjadi 3 kolom: No, Keterangan, Dokumentasi
                 table_data = [[
                     Paragraph("No", cell_header_style), 
                     Paragraph("Keterangan", cell_header_style), 
@@ -448,7 +469,6 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                     ]
                     table_data.append(row)
 
-                # Lebar total proporsional menyesuaikan halaman surat (552 pt)
                 t = Table(table_data, colWidths=[40, 250, 262])
                 t.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#002147')),
@@ -563,33 +583,63 @@ elif st.session_state.current_selected_menu == "Tentang":
         </div>
         """, unsafe_allow_html=True)
 
-        # --- TAMBAHAN BAGIAN FAQ / CARA PENGGUNAAN APLIKASI ---
-        st.markdown("""
+        # --- FAQ 10 PERTANYAAN TERKAIT MODEL YOLO, CARA PAKAI, DOKUMENTASI, DLL ---
+        faq_html = """
         <div style="background-color: #ffffff; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,33,71,0.06); border: 1px solid #eef2f7; margin-bottom: 35px;">
-            <h2 style="color: #002147; font-weight: 800; margin-top: 0; font-size: 20px; text-align: center; margin-bottom: 20px;">Panduan & FAQ Cara Penggunaan Aplikasi</h2>
+            <h2 style="color: #002147; font-weight: 800; margin-top: 0; font-size: 20px; text-align: center; margin-bottom: 25px;">Panduan & FAQ 10 Pertanyaan Umum Aplikasi E-TLE ODOL</h2>
             
-            <div style="margin-bottom: 15px;">
-                <b style="color: #002147; font-size: 14px;">1. Bagaimana cara melakukan deteksi pelanggaran dari file?</b>
-                <p style="color: #555; font-size: 13px; margin: 5px 0 0 0; line-height: 1.5;">
-                    Pilih menu <b>Deteksi Foto & Video</b> pada navigasi di atas, lalu unggah file gambar atau video pendek melalui tombol <i>file uploader</i> yang tersedia. Sistem akan otomatis memproses dan menampilkan hasil deteksi beserta tombol unduh laporannya.
-                </p>
+            <div style="margin-bottom: 18px;">
+                <b style="color: #002147; font-size: 14px;">1. Apa itu model YOLOv8 yang digunakan dalam aplikasi ini?</b>
+                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Model YOLOv8 (format ONNX) adalah arsitektur deep learning mutakhir untuk object detection yang mampu mendeteksi objek kendaraan dan pelanggaran muatan berlebih secara akurat dan real-time.</p>
             </div>
 
-            <div style="margin-bottom: 15px;">
-                <b style="color: #002147; font-size: 14px;">2. Bagaimana cara menggunakan fitur CCTV Real-Time?</b>
-                <p style="color: #555; font-size: 13px; margin: 5px 0 0 0; line-height: 1.5;">
-                    Masuk ke menu <b>CCTV Real-Time</b>, lalu klik tombol <b>Mulai Kamera</b>. Fitur ini menggunakan kamera perangkat secara langsung untuk mendeteksi kendaraan secara real-time. Pastikan Anda menggunakan laptop/PC untuk kompatibilitas optimal.
-                </p>
+            <div style="margin-bottom: 18px;">
+                <b style="color: #002147; font-size: 14px;">2. Bagaimana cara kerja sistem deteksi otomatis pada foto dan video?</b>
+                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Pengguna cukup mengunggah file melalui menu 'Deteksi Foto & Video'. Sistem akan memproses frame demi frame menggunakan model AI untuk mendeteksi apakah truk mengalami pelanggaran ODOL.</p>
+            </div>
+
+            <div style="margin-bottom: 18px;">
+                <b style="color: #002147; font-size: 14px;">3. Bagaimana cara mengaktifkan dan menggunakan fitur CCTV Real-Time?</b>
+                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Buka menu 'CCTV Real-Time', lalu klik tombol 'Mulai Kamera'. Sistem akan mengaktifkan kamera perangkat Anda untuk melakukan pemantauan dan analisis langsung secara live.</p>
+            </div>
+
+            <div style="margin-bottom: 18px;">
+                <b style="color: #002147; font-size: 14px;">4. Bagaimana sistem mengambil data waktu dan lokasi GPS secara real-time?</b>
+                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Aplikasi menggunakan fungsi integrasi JavaScript Geolocation API dan modul waktu Python untuk menampilkan hari, tanggal, jam, serta koordinat secara sinkron dan otomatis.</p>
+            </div>
+
+            <div style="margin-bottom: 18px;">
+                <b style="color: #002147; font-size: 14px;">5. Format file apa saja yang didukung oleh menu deteksi?</b>
+                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Aplikasi mendukung berbagai format gambar populer (JPG, JPEG, PNG, WEBP) serta format video standar (MP4, AVI, MOV, MKV, MPEG4).</p>
+            </div>
+
+            <div style="margin-bottom: 18px;">
+                <b style="color: #002147; font-size: 14px;">6. Bagaimana cara mengunduh laporan hasil penindakan pelanggaran?</b>
+                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Jika sistem mendeteksi adanya pelanggaran overload, tombol unduh laporan berformat PDF akan muncul secara otomatis di halaman deteksi.</p>
+            </div>
+
+            <div style="margin-bottom: 18px;">
+                <b style="color: #002147; font-size: 14px;">7. Apa saja informasi yang dimuat di dalam dokumen laporan PDF?</b>
+                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Laporan PDF resmi mencakup kop logo instansi, judul penindakan, nomor urut, keterangan pelanggaran, serta dokumentasi gambar bukti hasil deteksi AI.</p>
+            </div>
+
+            <div style="margin-bottom: 18px;">
+                <b style="color: #002147; font-size: 14px;">8. Perangkat apa yang disarankan untuk menjalankan aplikasi ini?</b>
+                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Aplikasi dapat diakses melalui laptop, PC, maupun smartphone. Namun, fitur CCTV Real-Time disarankan menggunakan komputer/laptop dengan webcam aktif.</p>
+            </div>
+
+            <div style="margin-bottom: 18px;">
+                <b style="color: #002147; font-size: 14px;">9. Apakah model AI dapat mendeteksi selain pelanggaran muatan berlebih?</b>
+                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Model dilatih khusus berfokus pada deteksi objek kelas overload (dimensi dan muatan berlebih) untuk mendukung penegakan hukum lalu lintas.</p>
             </div>
 
             <div>
-                <b style="color: #002147; font-size: 14px;">3. Bagaimana cara mengunduh laporan hasil pelanggaran?</b>
-                <p style="color: #555; font-size: 13px; margin: 5px 0 0 0; line-height: 1.5;">
-                    Jika sistem mendeteksi adanya indikasi pelanggaran <i>overload</i> pada menu deteksi, tombol <b>UNDUH LAPORAN PELANGGARAN (PDF)</b> akan muncul secara otomatis di bagian bawah halaman.
-                </p>
+                <b style="color: #002147; font-size: 14px;">10. Siapa pengembang di balik pembuatan sistem aplikasi E-TLE ODOL ini?</b>
+                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Aplikasi ini dikembangkan oleh Indah Lestari, mahasiswi Program Studi Teknik Informatika dari Universitas Halu Oleo (UHO).</p>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """
+        st.markdown(faq_html, unsafe_allow_html=True)
 
     st.markdown("<h2 style='text-align:center; color:#002147; font-weight:800; margin-bottom: 25px; font-size:22px;'>Tentang Pengembang Sistem</h2>", unsafe_allow_html=True)
     img_b64_str = f'data:image/jpeg;base64,{img6}' if img6 else ''
