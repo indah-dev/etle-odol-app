@@ -7,3 +7,5 @@ opencv-python-headless
 ultralytics
 reportlab
 Pillow
+requests
+streamlit-js-eval
