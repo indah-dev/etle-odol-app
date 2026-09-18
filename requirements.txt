@@ -1,10 +1,9 @@
 streamlit
 streamlit-option-menu
 plotly
-Pillow
 pandas
-opencv-python-headless
 numpy
+opencv-python-headless
 ultralytics
 reportlab
-onnxruntime
+Pillow
