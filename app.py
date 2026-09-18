@@ -108,66 +108,49 @@ def process_detection(file):
         return "image", cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB), has_overload
 
 
-# --- KOMPONEN GPS MAP CAMERA STABIL ---
+# --- KOMPONEN GPS MAP CAMERA AMAN & STABIL ---
 def render_lokasi_realtime(container_key_prefix="deteksi"):
-    html_gps_code = f"""
+    html_gps_code = """
     <div id="gps-box" style="font-family:sans-serif; font-size:13px; color:#002147; background:#e8f4fd; padding:12px 15px; border-radius:8px; border:1px solid #b6d4fe; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
         🛰️ Meminta izin akses GPS perangkat untuk sinkronisasi Google Maps...
     </div>
     
     <script>
-    function fetchLocation() {
-        const box = document.getElementById("gps-box");
-        if (!navigator.geolocation) {
-            box.innerHTML = "<b>⚠️ Error:</b> Geolokasi tidak didukung oleh browser Anda.";
-            return;
-        }
-        
+    if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-            async function(position) {
-                const lat = position.coords.latitude;
-                const lon = position.coords.longitude;
-                const accuracy = position.coords.accuracy;
-                const waktuLocal = new Date().toLocaleString("id-ID");
+            function(position) {
+                var lat = position.coords.latitude;
+                var lon = position.coords.longitude;
+                var acc = position.coords.accuracy;
+                var waktu = new Date().toLocaleString("id-ID");
                 
-                box.innerHTML = "🛰️ GPS Terdeteksi. Mengambil nama alamat...";
-                
-                try {
-                    const response = await fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat=" + lat + "&lon=" + lon + "&zoom=18&addressdetails=1");
-                    const data = await response.json();
-                    const addr = data.address || {};
-                    
-                    const jalan = addr.road || addr.suburb || addr.neighbourhood || addr.village || "Jalan Utama";
-                    const kecamatan = addr.suburb || addr.city_district || addr.county || "";
-                    const kota = addr.city || addr.town || addr.municipality || "Kota";
-                    const provinsi = addr.state || "";
-                    
-                    const alamatLengkap = jalan + ", " + (kecamatan ? kecamatan + ", " : "") + kota + ", " + provinsi;
-                    box.innerHTML = "<b>✅ GPS Map Camera Sinkron (Lokasi Perangkat Anda):</b><br><b>" + alamatLengkap + "</b><br><small style='color:#27ae60; font-weight:bold;'>Waktu: " + waktuLocal + " | Akurasi ±" + Math.round(accuracy) + " m (Lat: " + lat.toFixed(4) + ", Lon: " + lon.toFixed(4) + ")</small>";
-                } catch (err) {
-                    box.innerHTML = "<b>✅ GPS Koordinat Terkunci:</b> Lat: " + lat.toFixed(4) + ", Lon: " + lon.toFixed(4);
-                }
+                var box = document.getElementById("gps-box");
+                box.innerHTML = "<b>✅ GPS Terdeteksi:</b> Lat: " + lat.toFixed(5) + ", Lon: " + lon.toFixed(5) + " (Waktu: " + waktu + ")";
             },
             function(error) {
-                box.innerHTML = "<b style='color:#c0392b;'>⚠️ Akses GPS Ditolak/Gagal:</b> Pastikan izin lokasi browser diaktifkan.";
+                var box = document.getElementById("gps-box");
+                box.innerHTML = "<b style='color:#c0392b;'>⚠️ Akses GPS Ditolak/Gagal.</b> Silakan gunakan pengaturan manual di bawah.";
             },
-            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
+    } else {
+        document.getElementById("gps-box").innerHTML = "<b style='color:#c0392b;'>Geolokasi tidak didukung browser ini.</b>";
     }
-    fetchLocation();
     </script>
     """
-    components.html(html_gps_code, height=90)
+    components.html(html_gps_code, height=75)
     
-    waktu_fallback = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-    lokasi_default = f"Pos Pantau Wilayah Perangkat (GPS Aktif)\nWaktu: {waktu_fallback}"
+    waktu_sekarang = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     
-    with st.expander("✏️ Atur / Koreksi Lokasi Pos Pantau Manual (Opsional)"):
-        lokasi_manual = st.text_input("Nama Lokasi / Pos Pantau", value="", placeholder="Contoh: Jl. Ahmad Yani, Kendari", key=f"man_{container_key_prefix}")
+    # Opsi Input Manual Pos Pantau agar bebas disesuaikan kapan saja
+    lokasi_default = f"Pos Pantau Wilayah Utama (GPS Aktif)\nWaktu: {waktu_sekarang}"
+    
+    with st.expander("✏️ Atur / Masukkan Alamat Lokasi Pos Pantau Manual"):
+        lokasi_manual = st.text_input("Nama Jalan / Lokasi", value="", placeholder="Contoh: Jl. Ahmad Yani, Kendari", key=f"man_{container_key_prefix}")
         if lokasi_manual:
-            return f"{lokasi_manual}\n(Sinkronisasi Manual Device)", waktu_fallback
+            return f"{lokasi_manual}\n(Validasi Lokasi Perangkat)", waktu_sekarang
             
-    return lokasi_default, waktu_fallback
+    return lokasi_default, waktu_sekarang
 
 
 # --- 2. CSS CUSTOM RESPONSIF ---
