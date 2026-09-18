@@ -45,7 +45,7 @@ logo_korlantas = get_base64("assets/logo_korlantas.png")
 logo_hut = get_base64("assets/logo_hut_lantas.png")
 tokoh1_b64 = get_base64("tokoh1.jpg")
 tokoh2_b64 = get_base64("tokoh2.jpg")
-tokoh3_b64 = get_base64("tokoh3.png")   
+tokoh3_b64 = get_base64("tokoh3.png")    
 tokoh4_b64 = get_base64("tokoh4.jpg")
 
 # --- LOAD MODEL best.onnx ---
@@ -110,18 +110,15 @@ def process_detection(file):
 
 # --- FUNGSI GPS & WAKTU REAL-TIME (SINKRON ZONA WAKTU WITA / KENDARI PYTHON & JS KUNCI MATI) ---
 def render_lokasi_realtime():
-    # 1. MENGUNCI WAKTU PYTHON KE WITA (UTC+8) UNTUK PDF
     tz_wita = datetime.timezone(datetime.timedelta(hours=8))
     waktu_sekarang = datetime.datetime.now(tz_wita)
     
     hari_list = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
     nama_hari = hari_list[waktu_sekarang.weekday()]
     
-    # Format string Python yang akan ditarik ke dalam laporan PDF
     waktu_terkini = f"{nama_hari}, {waktu_sekarang.strftime('%d/%m/%Y, %H:%M:%S')} WITA"
     lokasi_teks = "Lat: -4.03069, Lon: 122.51556 (Kawasan Pemantauan E-TLE ODOL)"
     
-    # 2. MENGUNCI WAKTU JAVASCRIPT KE WITA (Asia/Makassar) UNTUK WEB
     html_gps_code = """
     <div id="gps-box" style="font-family:sans-serif; font-size:13px; color:#002147; background:#e8f4fd; padding:12px 15px; border-radius:8px; border:1px solid #b6d4fe; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
         <b>✅ GPS & Waktu Terdeteksi:</b> Lat: -4.03069, Lon: 122.51556 | <b>Waktu Memuat...</b>
@@ -130,8 +127,6 @@ def render_lokasi_realtime():
     <script>
     function updateRealtimeClock() {
         var days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-        
-        // Memaksa JavaScript mengambil waktu WITA (Kendari) meskipun klien berada di zona waktu lain
         var nowStr = new Date().toLocaleString("en-US", {timeZone: "Asia/Makassar"});
         var now = new Date(nowStr);
         
@@ -385,7 +380,8 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                     st.download_button("📥 Unduh Gambar Ini", img_bytes, file_name=f"deteksi_{uploaded_file.name}", mime="image/jpeg", key=f"dl_img_{file_idx}")
 
                 if has_overload:
-                    tmp_img = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg').name
+                    # PERBAIKAN: Menggunakan suffix unik berdasarkan file_idx agar gambar tidak tertimpa/sama terus
+                    tmp_img = tempfile.NamedTemporaryFile(delete=False, suffix=f'_{file_idx}.jpg').name
                     if ftype == "image":
                         cv2.imwrite(tmp_img, cv2.cvtColor(res_file, cv2.COLOR_RGB2BGR))
                     else:
