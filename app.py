@@ -108,19 +108,14 @@ def process_detection(file):
         return "image", cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB), has_overload
 
 
-# --- KOMPONEN GPS REAL-TIME (SINKRON MUTLAK DENGAN STREAMLIT & PDF) ---
+# --- KOMPONEN GPS AMAN TANPA KONFLIK SINTAKS ---
 def render_lokasi_realtime():
-    """
-    Mengambil posisi GPS perangkat secara otomatis, menampilkannya di Streamlit,
-    dan menyimpannya ke st.session_state agar laporan PDF mengambil data yang 100% identik.
-    """
-    if 'gps_info_str' not in st.session_state:
-        # Default awal sebelum GPS di-resolve browser
-        st.session_state.gps_info_str = f"Lat: -4.03067, Lon: 122.51555 (Waktu: {datetime.datetime.now().strftime('%d/%m/%Y, %H:%M:%S')})"
-
-    html_gps_code = f"""
+    waktu_sekarang = datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
+    lokasi_default = f"Lat: -4.03067, Lon: 122.51555 (Waktu: {waktu_sekarang})"
+    
+    html_gps_code = """
     <div id="gps-box" style="font-family:sans-serif; font-size:13px; color:#002147; background:#e8f4fd; padding:12px 15px; border-radius:8px; border:1px solid #b6d4fe; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        🛰️ Memuat titik koordinat GPS perangkat secara otomatis...
+        🛰️ Mengambil titik koordinat GPS perangkat secara otomatis...
     </div>
     
     <script>
@@ -134,21 +129,14 @@ def render_lokasi_realtime():
                 var jam = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
                 var waktuStr = tanggal + ', ' + jam;
                 
-                var infoText = "Lat: " + lat + ", Lon: " + lon + " (Waktu: " + waktuStr + ")";
-                
                 var box = document.getElementById("gps-box");
-                box.innerHTML = "<b>✅ GPS Terdeteksi:</b> " + infoText;
-                
-                // Sinkronisasi otomatis ke session storage agar bisa dibaca python
-                window.parent.postMessage({type: 'streamlit:setComponentValue', value: infoText}, "*");
+                box.innerHTML = "<b>✅ GPS Terdeteksi:</b> Lat: " + lat + ", Lon: " + lon + " (Waktu: " + waktuStr + ")";
             },
             function(error) {
-                var now = new Date();
-                var fallbackText = "Lat: -4.03067, Lon: 122.51555 (Waktu: " + String(now.getDate()).padStart(2, '0') + '/' + String(now.getMonth() + 1).padStart(2, '0') + '/' + now.getFullYear() + ", " + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0') + ")";
                 var box = document.getElementById("gps-box");
                 box.innerHTML = "<b style='color:#c0392b;'>⚠️ GPS Perangkat Tidak Aktif. Menggunakan koordinat default wilayah utama.</b>";
             },
-             {{ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }}
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     } else {
         document.getElementById("gps-box").innerHTML = "<b style='color:#c0392b;'>Geolokasi tidak didukung browser ini.</b>";
@@ -156,8 +144,7 @@ def render_lokasi_realtime():
     </script>
     """
     components.html(html_gps_code, height=65)
-    
-    return st.session_state.gps_info_str
+    return lokasi_default
 
 
 # --- 2. CSS CUSTOM RESPONSIF ---
@@ -402,8 +389,6 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                             cv2.imwrite(tmp_img, frame_doc)
                         cap_doc.release()
 
-                    # EKSTRAKSI WAKTU & LOKASI SECARA DINAMIS DARI VARIABEL GPS LIVE STREAMLIT
-                    # Contoh format gps_live_data: "Lat: -4.03067, Lon: 122.51555 (Waktu: 18/9/2026, 20.18.41)"
                     waktu_ekstrak = gps_live_data.split("(Waktu: ")[1].replace(")", "") if "(Waktu: " in gps_live_data else datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
                     lokasi_ekstrak = gps_live_data.split(" (Waktu:")[0] if " (Waktu:" in gps_live_data else gps_live_data
 
@@ -420,7 +405,7 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
             with c_rep2:
                 st.markdown("<h3 style='text-align:center; color:#e74c3c;'>Ditemukan Indikasi Pelanggaran ODOL</h3>", unsafe_allow_html=True)
 
-                # --- PEMBUATAN PDF DENGAN LAYOUT SUPER RAPI & PROFESIONAL (LEBAR PROPORSIONAL) ---
+                # --- PEMBUATAN PDF DENGAN LAYOUT SUPER RAPI & PROFESIONAL ---
                 pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf').name
                 doc = SimpleDocTemplate(
                     pdf_path, 
@@ -482,7 +467,6 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                 ]]
 
                 for idx, data in enumerate(report_data):
-                    # Ukuran gambar dokumentasi dipaskan agar tidak melebihi batas kolom tabel
                     img_pdf = RLImage(data['img_path'], width=1.3 * inch, height=1.6 * inch)
                     row = [
                         Paragraph(str(idx + 1), cell_text_style),
@@ -493,8 +477,7 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                     ]
                     table_data.append(row)
 
-                # Lebar total kolom diatur pas 540 pt (lebar efektif halaman letter 612 - margin kiri/kanan 72)
-                # ColWidths: [No(25), Waktu(95), Lokasi(170), Keterangan(80), Dokumentasi(170)] = 540 pt
+                # Lebar total pas 540 pt sesuai margin halaman letter
                 t = Table(table_data, colWidths=[25, 95, 170, 80, 170])
                 t.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#002147')),
