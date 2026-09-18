@@ -19,7 +19,7 @@ from ultralytics import YOLO
 # Tambahan library untuk ReportLab PDF
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from reportlab.lib.units import inch
 
@@ -108,33 +108,28 @@ def process_detection(file):
         return "image", cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB), has_overload
 
 
-# --- KOMPONEN GPS AMAN TANPA KONFLIK SINTAKS ---
-def render_lokasi_realtime():
-    waktu_sekarang = datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
-    lokasi_default = f"Lat: -4.03067, Lon: 122.51555 (Waktu: {waktu_sekarang})"
-    
+# --- KOMPONEN GPS MAP CAMERA AMAN & STABIL ---
+def render_lokasi_realtime(container_key_prefix="deteksi"):
     html_gps_code = """
     <div id="gps-box" style="font-family:sans-serif; font-size:13px; color:#002147; background:#e8f4fd; padding:12px 15px; border-radius:8px; border:1px solid #b6d4fe; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        🛰️ Mengambil titik koordinat GPS perangkat secara otomatis...
+        🛰️ Meminta izin akses GPS perangkat untuk sinkronisasi Google Maps...
     </div>
     
     <script>
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             function(position) {
-                var lat = position.coords.latitude.toFixed(5);
-                var lon = position.coords.longitude.toFixed(5);
-                var now = new Date();
-                var tanggal = String(now.getDate()).padStart(2, '0') + '/' + String(now.getMonth() + 1).padStart(2, '0') + '/' + now.getFullYear();
-                var jam = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
-                var waktuStr = tanggal + ', ' + jam;
+                var lat = position.coords.latitude;
+                var lon = position.coords.longitude;
+                var acc = position.coords.accuracy;
+                var waktu = new Date().toLocaleString("id-ID");
                 
                 var box = document.getElementById("gps-box");
-                box.innerHTML = "<b>✅ GPS Terdeteksi:</b> Lat: " + lat + ", Lon: " + lon + " (Waktu: " + waktuStr + ")";
+                box.innerHTML = "<b>✅ GPS Terdeteksi:</b> Lat: " + lat.toFixed(5) + ", Lon: " + lon.toFixed(5) + " (Waktu: " + waktu + ")";
             },
             function(error) {
                 var box = document.getElementById("gps-box");
-                box.innerHTML = "<b style='color:#c0392b;'>⚠️ GPS Perangkat Tidak Aktif. Menggunakan koordinat default wilayah utama.</b>";
+                box.innerHTML = "<b style='color:#c0392b;'>⚠️ Akses GPS Ditolak/Gagal.</b> Silakan gunakan pengaturan manual di bawah.";
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
@@ -143,8 +138,19 @@ def render_lokasi_realtime():
     }
     </script>
     """
-    components.html(html_gps_code, height=65)
-    return lokasi_default
+    components.html(html_gps_code, height=75)
+    
+    waktu_sekarang = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+    
+    # Opsi Input Manual Pos Pantau agar bebas disesuaikan kapan saja
+    lokasi_default = f"Pos Pantau Wilayah Utama (GPS Aktif)\nWaktu: {waktu_sekarang}"
+    
+    with st.expander("✏️ Atur / Masukkan Alamat Lokasi Pos Pantau Manual"):
+        lokasi_manual = st.text_input("Nama Jalan / Lokasi", value="", placeholder="Contoh: Jl. Ahmad Yani, Kendari", key=f"man_{container_key_prefix}")
+        if lokasi_manual:
+            return f"{lokasi_manual}\n(Validasi Lokasi Perangkat)", waktu_sekarang
+            
+    return lokasi_default, waktu_sekarang
 
 
 # --- 2. CSS CUSTOM RESPONSIF ---
@@ -350,11 +356,11 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
     """, unsafe_allow_html=True)
 
     st.markdown("<div style='padding: 20px 15px;'>", unsafe_allow_html=True)
-    st.info("**Panduan Singkat:** Unggah foto atau video pendek. Sistem otomatis mengambil titik koordinat GPS dan waktu secara real-time.")
+    st.info("**Panduan Singkat:** Unggah foto atau video pendek. Sistem otomatis mengaktifkan modul geolokasi perangkat untuk menampilkan watermark waktu & lokasi GPS secara akurat.")
 
     c_gps1, c_gps2, c_gps3 = st.columns([1, 4, 1])
     with c_gps2:
-        gps_live_data = render_lokasi_realtime()
+        lokasi_saat_ini, waktu_saat_ini = render_lokasi_realtime(container_key_prefix="deteksi")
 
     st.write("")
     uploaded_files = st.file_uploader("Pilih file foto/video", type=['jpg', 'jpeg', 'png', 'webp', 'mp4', 'avi', 'mov', 'mpeg4'], accept_multiple_files=True)
@@ -389,12 +395,9 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                             cv2.imwrite(tmp_img, frame_doc)
                         cap_doc.release()
 
-                    waktu_ekstrak = gps_live_data.split("(Waktu: ")[1].replace(")", "") if "(Waktu: " in gps_live_data else datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
-                    lokasi_ekstrak = gps_live_data.split(" (Waktu:")[0] if " (Waktu:" in gps_live_data else gps_live_data
-
                     report_data.append({
-                        "waktu": waktu_ekstrak,
-                        "lokasi": lokasi_ekstrak,
+                        "waktu": waktu_saat_ini,
+                        "lokasi": lokasi_saat_ini,
                         "keterangan": "Terdeteksi Overload",
                         "img_path": tmp_img
                     })
@@ -405,93 +408,45 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
             with c_rep2:
                 st.markdown("<h3 style='text-align:center; color:#e74c3c;'>Ditemukan Indikasi Pelanggaran ODOL</h3>", unsafe_allow_html=True)
 
-                # --- PEMBUATAN PDF DENGAN LAYOUT SUPER RAPI & PROFESIONAL ---
                 pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf').name
-                doc = SimpleDocTemplate(
-                    pdf_path, 
-                    pagesize=letter,
-                    rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36
-                )
+                doc = SimpleDocTemplate(pdf_path, pagesize=letter)
                 elements = []
                 styles = getSampleStyleSheet()
 
                 logo_elements = []
                 if os.path.exists("assets/logo_polri.png"):
-                    logo_elements.append(RLImage("assets/logo_polri.png", width=40, height=40))
+                    logo_elements.append(RLImage("assets/logo_polri.png", width=50, height=50))
                 if os.path.exists("assets/logo_korlantas.png"):
-                    logo_elements.append(RLImage("assets/logo_korlantas.png", width=40, height=40))
+                    logo_elements.append(RLImage("assets/logo_korlantas.png", width=50, height=50))
 
                 if logo_elements:
                     header_table = Table([logo_elements], hAlign='CENTER')
                     elements.append(header_table)
-                    elements.append(Spacer(1, 8))
+                    elements.append(Spacer(1, 12))
 
-                title_style = ParagraphStyle(
-                    'ReportTitle',
-                    parent=styles['Title'],
-                    fontName='Helvetica-Bold',
-                    fontSize=12,
-                    leading=15,
-                    textColor=colors.HexColor('#002147'),
-                    alignment=1
-                )
-                title = Paragraph("<b>LAPORAN RESMI PELANGGARAN TRUK ODOL (OVER DIMENSION OVER LOAD)</b>", title_style)
+                title = Paragraph("<para align=center><b>LAPORAN PELANGGARAN TRUK ODOL (OVER DIMENSION OVER LOAD)</b></para>", styles['Title'])
                 elements.append(title)
-                elements.append(Spacer(1, 12))
+                elements.append(Spacer(1, 20))
 
-                cell_text_style = ParagraphStyle(
-                    'CellText',
-                    parent=styles['Normal'],
-                    fontName='Helvetica',
-                    fontSize=8.5,
-                    leading=11,
-                    textColor=colors.HexColor('#333333')
-                )
-                
-                cell_header_style = ParagraphStyle(
-                    'CellHeader',
-                    parent=styles['Normal'],
-                    fontName='Helvetica-Bold',
-                    fontSize=8.5,
-                    leading=11,
-                    textColor=colors.whitesmoke,
-                    alignment=1
-                )
-
-                table_data = [[
-                    Paragraph("No", cell_header_style), 
-                    Paragraph("Tanggal & Waktu", cell_header_style), 
-                    Paragraph("Alamat / Lokasi Deteksi", cell_header_style), 
-                    Paragraph("Keterangan", cell_header_style), 
-                    Paragraph("Dokumentasi", cell_header_style)
-                ]]
-
+                table_data = [["No", "Tanggal & Waktu", "Alamat / Lokasi Deteksi", "Keterangan", "Dokumentasi"]]
                 for idx, data in enumerate(report_data):
-                    img_pdf = RLImage(data['img_path'], width=1.3 * inch, height=1.6 * inch)
-                    row = [
-                        Paragraph(str(idx + 1), cell_text_style),
-                        Paragraph(data['waktu'], cell_text_style),
-                        Paragraph(data['lokasi'], cell_text_style),
-                        Paragraph(data['keterangan'], cell_text_style),
-                        img_pdf
-                    ]
+                    img_pdf = RLImage(data['img_path'], width=1.6 * inch, height=2.0 * inch)
+                    row = [str(idx + 1), data['waktu'], data['lokasi'], data['keterangan'], img_pdf]
                     table_data.append(row)
 
-                # Lebar total pas 540 pt sesuai margin halaman letter
-                t = Table(table_data, colWidths=[25, 95, 170, 80, 170])
+                t = Table(table_data, colWidths=[30, 95, 130, 90, 130])
                 t.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#002147')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                     ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
                     ('ALIGN', (0, 1), (0, -1), 'CENTER'),
                     ('ALIGN', (1, 1), (3, -1), 'LEFT'),
                     ('ALIGN', (4, 1), (4, -1), 'CENTER'),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('TOPPADDING', (0, 0), (-1, -1), 6),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 5),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
                     ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
                 ]))
                 elements.append(t)
                 doc.build(elements)
@@ -526,9 +481,7 @@ elif st.session_state.current_selected_menu == "CCTV Real-Time":
     with c_cc2:
         st.markdown("<div style='background:#e8f4fd; color:#002147; font-weight:bold; padding:15px; border-radius:10px; margin-bottom:15px; border:1px solid #b6d4fe; font-size:13px;'>Catatan: Fitur Live CCTV real-time menggunakan kamera perangkat lokal (laptop). Gunakan menu Deteksi Foto & Video jika diakses melalui HP.</div>", unsafe_allow_html=True)
 
-        gps_live_cctv = render_lokasi_realtime()
-        waktu_cctv = gps_live_cctv.split("(Waktu: ")[1].replace(")", "") if "(Waktu: " in gps_live_cctv else time.strftime("%H:%M:%S")
-        lokasi_cctv = gps_live_cctv.split(" (Waktu:")[0] if " (Waktu:" in gps_live_cctv else gps_live_cctv
+        lokasi_cctv, waktu_cctv = render_lokasi_realtime(container_key_prefix="cctv")
 
         if 'cctv_active' not in st.session_state:
             st.session_state.cctv_active = False
@@ -566,7 +519,7 @@ elif st.session_state.current_selected_menu == "CCTV Real-Time":
                     temp_snap = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg').name
                     cv2.imwrite(temp_snap, annotated_frame)
                     recap_data.append({
-                        "waktu": waktu_cctv,
+                        "waktu": time.strftime("%H:%M:%S"),
                         "lokasi": lokasi_cctv,
                         "path": temp_snap,
                         "status": "Terdeteksi Overload"
