@@ -108,14 +108,20 @@ def process_detection(file):
         return "image", cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB), has_overload
 
 
-# --- FUNGSI GPS & WAKTU REAL-TIME JAVASCRIPT & PYTHON SINKRON ---
+# --- FUNGSI GPS & WAKTU REAL-TIME (SINKRON ZONA WAKTU WITA / KENDARI PYTHON & JS KUNCI MATI) ---
 def render_lokasi_realtime():
-    waktu_sekarang = datetime.datetime.now()
-    hari_list = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
-    nama_hari = hari_list[waktu_sekarang.weekday()]
-    waktu_terkini = f"{nama_hari}, {waktu_sekarang.strftime('%d/%m/%Y, %H:%M:%S')}"
-    lokasi_teks = f"Lat: -4.03069, Lon: 122.51556 (Kawasan Pemantauan E-TLE ODOL)"
+    # 1. MENGUNCI WAKTU PYTHON KE WITA (UTC+8) UNTUK PDF
+    tz_wita = datetime.timezone(datetime.timedelta(hours=8))
+    waktu_sekarang = datetime.datetime.now(tz_wita)
     
+    hari_list = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
+    nama_hari = hari_list[waktu_sekarang.weekday()]
+    
+    # Format string Python yang akan ditarik ke dalam laporan PDF
+    waktu_terkini = f"{nama_hari}, {waktu_sekarang.strftime('%d/%m/%Y, %H:%M:%S')} WITA"
+    lokasi_teks = "Lat: -4.03069, Lon: 122.51556 (Kawasan Pemantauan E-TLE ODOL)"
+    
+    # 2. MENGUNCI WAKTU JAVASCRIPT KE WITA (Asia/Makassar) UNTUK WEB
     html_gps_code = """
     <div id="gps-box" style="font-family:sans-serif; font-size:13px; color:#002147; background:#e8f4fd; padding:12px 15px; border-radius:8px; border:1px solid #b6d4fe; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
         <b>✅ GPS & Waktu Terdeteksi:</b> Lat: -4.03069, Lon: 122.51556 | <b>Waktu Memuat...</b>
@@ -124,11 +130,15 @@ def render_lokasi_realtime():
     <script>
     function updateRealtimeClock() {
         var days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-        var now = new Date();
+        
+        // Memaksa JavaScript mengambil waktu WITA (Kendari) meskipun klien berada di zona waktu lain
+        var nowStr = new Date().toLocaleString("en-US", {timeZone: "Asia/Makassar"});
+        var now = new Date(nowStr);
+        
         var hari = days[now.getDay()];
         var tanggal = String(now.getDate()).padStart(2, '0') + '/' + String(now.getMonth() + 1).padStart(2, '0') + '/' + now.getFullYear();
         var jam = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
-        var waktuStr = hari + ', ' + tanggal + ', ' + jam;
+        var waktuStr = hari + ', ' + tanggal + ', ' + jam + ' WITA';
         
         var box = document.getElementById("gps-box");
         if (box) {
@@ -385,6 +395,7 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                             cv2.imwrite(tmp_img, frame_doc)
                         cap_doc.release()
 
+                    # MENGAMBIL DATA WAKTU (YANG SUDAH DIKUNCI KE WITA) UNTUK LAPORAN PDF
                     report_data.append({
                         "waktu": waktu_saat_ini,
                         "lokasi": lokasi_saat_ini,
@@ -460,15 +471,20 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
 
                 for idx, data in enumerate(report_data):
                     img_pdf = RLImage(data['img_path'], width=1.3 * inch, height=1.6 * inch)
+                    
+                    # Memecah baris tanggal dan waktu agar tabel PDF tetap sangat rapi
+                    waktu_pdf = data['waktu'].replace(', ', '<br/>')
+                    
                     row = [
                         Paragraph(str(idx + 1), cell_text_style),
-                        Paragraph(data['waktu'], cell_text_style),
+                        Paragraph(waktu_pdf, cell_text_style),
                         Paragraph(data['lokasi'], cell_text_style),
                         Paragraph(data['keterangan'], cell_text_style),
                         img_pdf
                     ]
                     table_data.append(row)
 
+                # Lebar total pas 552 pt (No:25, Waktu:95, Lokasi:175, Keterangan:80, Dokumentasi:177)
                 t = Table(table_data, colWidths=[25, 95, 175, 80, 177])
                 t.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#002147')),
@@ -584,7 +600,6 @@ elif st.session_state.current_selected_menu == "Tentang":
         </div>
         """, unsafe_allow_html=True)
 
-        # --- FAQ 10 PERTANYAAN (DIPERBAIKI MENGGUNAKAN MARKDOWN STREAMLIT MURNI) ---
         st.markdown("""
         <div style="background-color: #ffffff; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,33,71,0.06); border: 1px solid #eef2f7; margin-bottom: 35px;">
             <h2 style="color: #002147; font-weight: 800; margin-top: 0; font-size: 20px; text-align: center; margin-bottom: 25px;">Panduan & FAQ 10 Pertanyaan Umum Aplikasi E-TLE ODOL</h2>
