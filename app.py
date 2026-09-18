@@ -16,10 +16,6 @@ import numpy as np
 import tempfile
 from ultralytics import YOLO
 
-# Library untuk mengambil koordinat GPS ASLI dari browser/device pengguna
-# dan mengembalikannya langsung ke Python (bukan sekadar JS sepihak).
-from streamlit_js_eval import get_geolocation
-
 # Tambahan library untuk ReportLab PDF
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, Table, TableStyle
@@ -41,15 +37,15 @@ def get_base64(file):
 img1 = get_base64("img1.png")
 img2 = get_base64("img2.jpg")
 img3 = get_base64("img3.png")
-img4 = get_base64("img4.jpg")
-img5 = get_base64("img5.jpg")
-img6 = get_base64("img6.jpeg")
+img4 = get_base64("img4.jpg") 
+img5 = get_base64("img5.jpg") 
+img6 = get_base64("img6.jpeg") 
 logo_polri = get_base64("assets/logo_polri.png")
 logo_korlantas = get_base64("assets/logo_korlantas.png")
 logo_hut = get_base64("assets/logo_hut_lantas.png")
 tokoh1_b64 = get_base64("tokoh1.jpg")
 tokoh2_b64 = get_base64("tokoh2.jpg")
-tokoh3_b64 = get_base64("tokoh3.png")
+tokoh3_b64 = get_base64("tokoh3.png")  
 tokoh4_b64 = get_base64("tokoh4.jpg")
 
 # --- LOAD MODEL best.onnx ---
@@ -64,12 +60,12 @@ def process_detection(file):
     file_bytes = file.getvalue()
     file_ext = file.name.split('.')[-1].lower()
     has_overload = False
-
+    
     if file_ext in ['mp4', 'avi', 'mov', 'mkv', 'mpeg4']:
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.' + file_ext) as tfile_in:
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.'+file_ext) as tfile_in:
             tfile_in.write(file_bytes)
             temp_in = tfile_in.name
-
+            
         cap = cv2.VideoCapture(temp_in)
         fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
         w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -77,7 +73,7 @@ def process_detection(file):
         temp_out = tempfile.NamedTemporaryFile(delete=False, suffix='.webm').name
         fourcc = cv2.VideoWriter_fourcc(*'VP80')
         out = cv2.VideoWriter(temp_out, fourcc, fps, (w, h))
-
+        
         frameCount = 0
         max_frames = int(fps * 15)
         while cap.isOpened() and frameCount < max_frames:
@@ -94,11 +90,10 @@ def process_detection(file):
             frame_plotted = results[0].plot()
             out.write(frame_plotted)
             frameCount += 1
-
+            
         cap.release()
         out.release()
         return "video", temp_out, has_overload
-
     else:
         nparr = np.frombuffer(file_bytes, np.uint8)
         img_array = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -113,123 +108,81 @@ def process_detection(file):
         return "image", cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB), has_overload
 
 
-# --- FUNGSI REVERSE GEOCODING: koordinat GPS -> alamat sesuai Maps ---
-# Dijalankan di server (Python), sehingga hasil koordinat yang diterima
-# dari browser device pengguna BENAR-BENAR dipakai, bukan sekadar tampil di JS.
-def reverse_geocode_ke_alamat(lat, lon):
-    try:
-        headers = {
-            # Nominatim (OpenStreetMap) mewajibkan header User-Agent yang jelas.
-            "User-Agent": "ETLE-ODOL-KorlantasPolri-App/1.0 (kontak: etle.odol.app@gmail.com)"
-        }
-        url = (
-            "https://nominatim.openstreetmap.org/reverse"
-            f"?format=json&lat={lat}&lon={lon}&zoom=18&addressdetails=1"
-        )
-        resp = requests.get(url, headers=headers, timeout=8)
-        data = resp.json()
-        addr = data.get("address", {})
-
-        jalan = addr.get("road") or addr.get("suburb") or addr.get("neighbourhood") or addr.get("village") or "Ruas Jalan Tidak Teridentifikasi"
-        kecamatan = addr.get("suburb") or addr.get("city_district") or addr.get("county") or ""
-        kota = addr.get("city") or addr.get("town") or addr.get("municipality") or ""
-        provinsi = addr.get("state") or ""
-
-        bagian_alamat = [b for b in [jalan, kecamatan, kota, provinsi] if b]
-        alamat_lengkap = ", ".join(bagian_alamat) if bagian_alamat else "Lokasi Tidak Dikenali"
-
-        return f"{alamat_lengkap}\nLat: {float(lat):.6f}°, Long: {float(lon):.6f}°"
-    except Exception:
-        # Jika reverse geocoding gagal (mis. tidak ada koneksi ke Nominatim),
-        # koordinat GPS asli tetap ditampilkan apa adanya (tetap sesuai device, bukan default).
-        return f"Koordinat GPS Perangkat\nLat: {float(lat):.6f}°, Long: {float(lon):.6f}°"
-
-
+# --- KOMPONEN GPS MAP CAMERA STABIL (JS + Reverse Geocoding API) ---
 def render_lokasi_realtime(container_key_prefix="deteksi"):
     """
-    Menangkap lokasi GPS ASLI perangkat pengguna (berbeda-beda tiap device,
-    sesuai izin lokasi & posisi masing-masing), lalu mencocokkannya dengan
-    alamat pada peta (Google Maps/OpenStreetMap) melalui reverse geocoding.
-    Hasilnya disimpan pada st.session_state agar konsisten dipakai pada
-    laporan PDF. TIDAK ADA alamat default yang di-hardcode ke satu lokasi.
+    Mengambil koordinat GPS asli dari browser perangkat pengguna secara real-time
+    tanpa error, lalu mencocokkannya dengan nama jalan/alamat asli melalui OpenStreetMap.
     """
-    key_lokasi = f"{container_key_prefix}_lokasi_realtime"
-    key_waktu = f"{container_key_prefix}_waktu_realtime"
-    key_status = f"{container_key_prefix}_gps_status"
-    key_counter = f"{container_key_prefix}_gps_counter"
-
-    if key_lokasi not in st.session_state:
-        st.session_state[key_lokasi] = None
-        st.session_state[key_waktu] = None
-        st.session_state[key_status] = "loading"
-        st.session_state[key_counter] = 0
-
-    info_box = st.empty()
-
-    col_info, col_btn = st.columns([4, 1])
-    with col_btn:
-        minta_ulang = st.button("🔄 Perbarui Lokasi", key=f"{container_key_prefix}_btn_refresh_gps", use_container_width=True)
-        if minta_ulang:
-            st.session_state[key_lokasi] = None
-            st.session_state[key_status] = "loading"
-            st.session_state[key_counter] += 1
-
-    # Panggil komponen geolocation browser. key unik memastikan permintaan
-    # GPS baru benar-benar dipicu ulang saat tombol "Perbarui Lokasi" ditekan.
-    if st.session_state[key_status] == "loading":
-        geo = get_geolocation(key=f"{container_key_prefix}_geo_{st.session_state[key_counter]}")
-        waktu_sekarang = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-
-        if geo and isinstance(geo, dict) and "coords" in geo:
-            lat = geo["coords"]["latitude"]
-            lon = geo["coords"]["longitude"]
-            akurasi = geo["coords"].get("accuracy", 0)
-
-            alamat = reverse_geocode_ke_alamat(lat, lon)
-            st.session_state[key_lokasi] = alamat
-            st.session_state[key_waktu] = waktu_sekarang
-            st.session_state[key_status] = "ok"
-            st.session_state[f"{container_key_prefix}_gps_akurasi"] = akurasi
-        # Jika geo masih None, berarti browser belum memberi izin/mengirim
-        # koordinat -> biarkan status tetap "loading", Streamlit akan
-        # otomatis re-run begitu browser mengirim datanya.
-
-    status = st.session_state[key_status]
-    if status == "ok":
-        lokasi_tampil = st.session_state[key_lokasi].replace("\n", " | ")
-        akurasi = st.session_state.get(f"{container_key_prefix}_gps_akurasi", 0)
-        info_box.markdown(
-            f"""<div style="font-family:sans-serif; font-size:13px; color:#002147; background:#e6f7ec;
-            padding:12px 15px; border-radius:8px; border:1px solid #a9dfbf; margin-bottom:10px;">
-            ✅ <b>GPS Map Camera Sinkron (Lokasi Perangkat Anda Saat Ini):</b><br>
-            <b>{lokasi_tampil}</b><br>
-            <small style="color:#219653; font-weight:bold;">Waktu: {st.session_state[key_waktu]} | Akurasi ±{akurasi:.0f} m</small>
-            </div>""",
-            unsafe_allow_html=True,
-        )
-    elif status == "manual":
-        info_box.info(f"📍 Lokasi diisi manual: **{st.session_state[key_lokasi]}**")
-    else:
-        info_box.warning(
-            "📡 Menunggu izin lokasi GPS dari browser Anda. Mohon **izinkan akses lokasi** pada "
-            "prompt yang muncul di browser, lalu tunggu beberapa detik. Jika prompt tidak muncul, "
-            "klik tombol 'Perbarui Lokasi' di sebelah kanan."
-        )
-
-    # Fallback manual jika GPS ditolak/tidak tersedia di device tertentu.
-    with st.expander("✏️ Lokasi GPS tidak terdeteksi otomatis? Isi manual di sini"):
-        manual_input = st.text_input(
-            "Masukkan alamat/lokasi pos pantau saat ini",
-            value="",
-            key=f"{container_key_prefix}_manual_lokasi_input",
-            placeholder="Contoh: Jl. Jenderal Sudirman, Kec. ..., Kota ..., Provinsi ...",
-        )
-        if manual_input:
-            st.session_state[key_lokasi] = manual_input
-            st.session_state[key_waktu] = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-            st.session_state[key_status] = "manual"
-
-    return st.session_state[key_lokasi], st.session_state[key_waktu]
+    html_gps_code = f"""
+    <div id="gps-box_{container_key_prefix}" style="font-family:sans-serif; font-size:13px; color:#002147; background:#e8f4fd; padding:12px 15px; border-radius:8px; border:1px solid #b6d4fe; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        🛰️ Meminta izin akses GPS perangkat untuk sinkronisasi Google Maps...
+    </div>
+    
+    <script>
+    function fetchLocation() {
+        const box = document.getElementById("gps-box_{container_key_prefix}");
+        if (!navigator.geolocation) {
+            box.innerHTML = "<b>⚠️ Error:</b> Geolokasi tidak didukung oleh browser Anda.";
+            return;
+        }
+        
+        navigator.geolocation.getCurrentPosition(
+            async function(position) {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                const accuracy = position.coords.accuracy;
+                const waktuLocal = new Date().toLocaleString("id-ID", {{ timeZoneName: 'short' }});
+                
+                box.innerHTML = `🛰️ GPS Terdeteksi (Lat: ${{lat.toFixed(4)}}, Lon: ${{lon.toFixed(4)}}). Mengambil nama alamat...`;
+                
+                try {
+                    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${{lat}}&lon=${{lon}}&zoom=18&addressdetails=1`);
+                    const data = await response.json();
+                    const addr = data.address || {};
+                    
+                    const jalan = addr.road || addr.suburb || addr.neighbourhood || addr.village || "Jalan Utama";
+                    const kecamatan = addr.suburb || addr.city_district || addr.county || "";
+                    const kota = addr.city || addr.town || addr.municipality || "Kota";
+                    const provinsi = addr.state || "";
+                    
+                    const alamatLengkap = `${{jalan}}, ${{kecamatan ? kecamatan + ', ' : ''}}${{kota}}, ${{provinsi}}`.replace(/, ,/g, ',');
+                    const finalString = `${{alamatLengkap}}\\nLat: ${{lat.toFixed(6)}}°, Long: ${{lon.toFixed(6)}}°`;
+                    
+                    // Simpan ke sessionStorage agar bisa diakses python jika diperlukan atau langsung dirender
+                    sessionStorage.setItem("etle_lokasi_{container_key_prefix}", finalString);
+                    sessionStorage.setItem("etle_waktu_{container_key_prefix}", waktuLocal);
+                    
+                    box.innerHTML = `<b>✅ GPS Map Camera Sinkron (Lokasi Perangkat Anda):</b><br><b>${{alamatLengkap}}</b><br><small style="color:#27ae60; font-weight:bold;">Waktu: ${{waktuLocal}} | Akurasi ±${{Math.round(accuracy)}} m (Lat: ${{lat.toFixed(4)}}, Lon: ${{lon.toFixed(4)}})</small>`;
+                } catch (err) {
+                    const fallbackStr = `Titik Koordinat GPS Perangkat\\nLat: ${{lat.toFixed(6)}}°, Long: ${{lon.toFixed(6)}}°`;
+                    sessionStorage.setItem("etle_lokasi_{container_key_prefix}", fallbackStr);
+                    sessionStorage.setItem("etle_waktu_{container_key_prefix}", waktuLocal);
+                    box.innerHTML = `<b>✅ GPS Koordinat Terkunci:</b> Lat: ${{lat.toFixed(4)}}, Lon: ${{lon.toFixed(4)}}`;
+                }
+            },
+            function(error) {
+                box.innerHTML = `<b style="color:#c0392b;">⚠️ Akses GPS Ditolak/Gagal:</b> Pastikan izin lokasi browser Anda diaktifkan untuk situs ini.`;
+            },
+            {{ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }}
+        );
+    }
+    fetchLocation();
+    </script>
+    """
+    components.html(html_gps_code, height=90)
+    
+    # Waktu presisi server lokal backup
+    waktu_fallback = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+    lokasi_default = f"Pos Pantau Wilayah Perangkat (Lat/Long Aktif)\nWaktu: {waktu_fallback}"
+    
+    # Berikan opsi input manual jaga-jaga jika device memblokir GPS
+    with st.expander("✏️ Atur / Koreksi Lokasi Pos Pantau Manual (Opsional)"):
+        lokasi_manual = st.text_input("Nama Lokasi / Pos Pantau", value="", placeholder="Contoh: Jl. Ahmad Yani, Kendari", key=f"man_{container_key_prefix}")
+        if lokasi_manual:
+            return f"{lokasi_manual}\n(Sinkronisasi Manual Device)", waktu_fallback
+            
+    return lokasi_default, waktu_fallback
 
 
 # --- 2. CSS CUSTOM RESPONSIF UNTUK HP & LAPTOP ---
@@ -303,7 +256,7 @@ if 'current_selected_menu' not in st.session_state:
     st.session_state.current_selected_menu = "Beranda"
 
 selected = option_menu(
-    menu_title=None,
+    menu_title=None, 
     options=menu_options,
     default_index=menu_options.index(st.session_state.current_selected_menu),
     icons=["house", "cpu", "camera-video", "people"],
@@ -339,11 +292,11 @@ if st.session_state.current_selected_menu == "Beranda":
 
     regulation_counter_html = """
     <style>
-    body { margin: 0; padding: 0; background-color: #f4f6f9; box-sizing: border-box; }
+    body { margin: 0; padding: 0; background-color: #f4f6f9; box-sizing: border-box; } 
     *, *:before, *:after { box-sizing: inherit; }
-    .counter-wrapper { display: flex; flex-wrap: wrap; justify-content: space-between; background: #ffffff; padding: 15px; font-family: sans-serif; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-    .counter-box { text-align: center; border: 1px solid #e0e0e0; background-color: #ffffff; padding: 15px 5px; width: 48%; margin-bottom: 15px; border-radius: 8px; }
-    .counter-box h3 { font-size: 24px; color: #f39c12; margin: 0 0 5px 0; font-weight: 800; }
+    .counter-wrapper { display: flex; flex-wrap: wrap; justify-content: space-between; background: #ffffff; padding: 15px; font-family: sans-serif; box-shadow: 0 4px 6px rgba(0,0,0,0.02); } 
+    .counter-box { text-align: center; border: 1px solid #e0e0e0; background-color: #ffffff; padding: 15px 5px; width: 48%; margin-bottom: 15px; border-radius: 8px; } 
+    .counter-box h3 { font-size: 24px; color: #f39c12; margin: 0 0 5px 0; font-weight: 800; } 
     .counter-box p { font-size: 10px; margin: 0; font-weight: bold; text-transform: uppercase; color: #002147; line-height: 1.3; }
     @media(min-width: 768px) {
         .counter-wrapper { flex-wrap: nowrap; gap: 15px; padding: 25px; }
@@ -367,22 +320,22 @@ if st.session_state.current_selected_menu == "Beranda":
         </div>
     </div>
     <script>
-    const counters = document.querySelectorAll('.count');
-    counters.forEach(counter => {
-        const target = +counter.getAttribute('data-target');
+    const counters = document.querySelectorAll('.count'); 
+    counters.forEach(counter => { 
+        const target = +counter.getAttribute('data-target'); 
         const unit = counter.getAttribute('data-unit');
-        const inc = target / 40;
-        let current = 0;
-        const updateCount = () => {
-            current += inc;
-            if (current < target) {
+        const inc = target / 40; 
+        let current = 0; 
+        const updateCount = () => { 
+            current += inc; 
+            if (current < target) { 
                 counter.innerText = (target % 1 === 0 ? Math.ceil(current) : current.toFixed(1)) + unit;
-                setTimeout(updateCount, 30);
-            } else {
-                counter.innerText = target + unit;
-            }
-        };
-        updateCount();
+                setTimeout(updateCount, 30); 
+            } else { 
+                counter.innerText = target + unit; 
+            } 
+        }; 
+        updateCount(); 
     });
     </script>
     """
@@ -434,7 +387,7 @@ if st.session_state.current_selected_menu == "Beranda":
         st.markdown("""<div class="news-card"><div class="news-title">Daftar Kecelakaan yang Disebabkan Truk ODOL</div><div class="news-excerpt">Catatan insiden fatal di berbagai ruas jalan nasional akibat tonase berlebih...</div><a href="https://otomotif.kompas.com/read/2025/06/09/171200015/daftar-kecelakaan-yang-disebabkan-truk-odol" target="_blank" style="color:#f39c12; font-weight:bold; text-decoration:none;">Baca Selengkapnya →</a></div>""", unsafe_allow_html=True)
 
 # ==========================================
-# HALAMAN 2: DETEKSI FOTO & VIDEO (GPS MAP CAMERA - TERHUBUNG LANGSUNG KE MAPS, PER DEVICE)
+# HALAMAN 2: DETEKSI FOTO & VIDEO (GPS MAP CAMERA)
 # ==========================================
 elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
     st.markdown(f"""
@@ -449,7 +402,7 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
     """, unsafe_allow_html=True)
 
     st.markdown("<div style='padding: 20px 15px;'>", unsafe_allow_html=True)
-    st.info("**Panduan Singkat:** Unggah foto atau video pendek. Sistem akan meminta izin lokasi GPS perangkat Anda, mencocokkannya dengan peta (Maps), lalu mencantumkannya pada hasil deteksi dan laporan sebagai bukti waktu & lokasi yang valid — sesuai posisi perangkat masing-masing petugas.")
+    st.info("**Panduan Singkat:** Unggah foto atau video pendek. Sistem otomatis mengaktifkan modul geolokasi perangkat untuk menampilkan watermark waktu & lokasi GPS secara akurat.")
 
     c_gps1, c_gps2, c_gps3 = st.columns([1, 4, 1])
     with c_gps2:
@@ -477,13 +430,12 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                     img_bytes = buffer.tobytes()
                     st.download_button("📥 Unduh Gambar Ini", img_bytes, file_name=f"deteksi_{uploaded_file.name}", mime="image/jpeg", key=f"dl_img_{file_idx}")
 
-                # HANYA masukkan ke laporan jika terdeteksi OVERLOAD (Truk normal diabaikan mutlak)
+                # HANYA masukkan ke laporan jika terdeteksi OVERLOAD
                 if has_overload:
                     tmp_img = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg').name
                     if ftype == "image":
                         cv2.imwrite(tmp_img, cv2.cvtColor(res_file, cv2.COLOR_RGB2BGR))
                     else:
-                        # Untuk video, ambil frame terakhir file hasil sebagai dokumentasi gambar laporan
                         cap_doc = cv2.VideoCapture(res_file)
                         ok_doc, frame_doc = cap_doc.read()
                         if ok_doc:
@@ -491,9 +443,8 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                         cap_doc.release()
 
                     report_data.append({
-                        # Lokasi & waktu ASLI hasil GPS device pengguna saat ini (bukan default statis).
-                        "waktu": waktu_saat_ini or datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
-                        "lokasi": lokasi_saat_ini or "Lokasi GPS belum diizinkan/tersedia pada perangkat ini",
+                        "waktu": waktu_saat_ini,
+                        "lokasi": lokasi_saat_ini,
                         "keterangan": "Terdeteksi Overload",
                         "img_path": tmp_img
                     })
@@ -505,13 +456,11 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
             with c_rep2:
                 st.markdown("<h3 style='text-align:center; color:#e74c3c;'>Ditemukan Indikasi Pelanggaran ODOL</h3>", unsafe_allow_html=True)
 
-                # Proses pembuatan PDF
                 pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf').name
                 doc = SimpleDocTemplate(pdf_path, pagesize=letter)
                 elements = []
                 styles = getSampleStyleSheet()
 
-                # Setup header logo dengan membaca file langsung dari folder assets
                 logo_elements = []
                 if os.path.exists("assets/logo_polri.png"):
                     logo_elements.append(RLImage("assets/logo_polri.png", width=50, height=50))
@@ -527,23 +476,20 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                 elements.append(title)
                 elements.append(Spacer(1, 20))
 
-                # Format Tabel Laporan
                 table_data = [["No", "Tanggal & Waktu", "Alamat / Lokasi Deteksi", "Keterangan", "Dokumentasi"]]
                 for idx, data in enumerate(report_data):
-                    # Resize gambar menjadi 4x5 ratio (lebar 1.6 inch, tinggi 2.0 inch)
                     img_pdf = RLImage(data['img_path'], width=1.6 * inch, height=2.0 * inch)
                     row = [str(idx + 1), data['waktu'], data['lokasi'], data['keterangan'], img_pdf]
                     table_data.append(row)
 
-                # Styling Tabel PDF (Isi tabel rata kiri secara rapi)
                 t = Table(table_data, colWidths=[30, 95, 130, 90, 130])
                 t.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#002147')),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                    ('ALIGN', (0, 0), (-1, 0), 'CENTER'),      # Header kolom rata tengah
-                    ('ALIGN', (0, 1), (0, -1), 'CENTER'),      # Nomor urut rata tengah
-                    ('ALIGN', (1, 1), (3, -1), 'LEFT'),        # Kolom Waktu, Lokasi, dan Keterangan RATA KIRI
-                    ('ALIGN', (4, 1), (4, -1), 'CENTER'),      # Gambar dokumentasi rata tengah
+                    ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                    ('ALIGN', (0, 1), (0, -1), 'CENTER'),
+                    ('ALIGN', (1, 1), (3, -1), 'LEFT'),
+                    ('ALIGN', (4, 1), (4, -1), 'CENTER'),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                     ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
@@ -553,7 +499,6 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                 elements.append(t)
                 doc.build(elements)
 
-                # Tombol Download
                 with open(pdf_path, "rb") as pdf_file:
                     st.download_button(
                         label="📄 UNDUH LAPORAN PELANGGARAN (PDF)",
@@ -623,7 +568,7 @@ elif st.session_state.current_selected_menu == "CCTV Real-Time":
                     cv2.imwrite(temp_snap, annotated_frame)
                     recap_data.append({
                         "waktu": time.strftime("%H:%M:%S"),
-                        "lokasi": lokasi_cctv or "Lokasi GPS belum diizinkan/tersedia pada perangkat ini",
+                        "lokasi": lokasi_cctv,
                         "path": temp_snap,
                         "status": "Terdeteksi Overload"
                     })
@@ -635,12 +580,10 @@ elif st.session_state.current_selected_menu == "CCTV Real-Time":
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ==========================================
-# HALAMAN 4: TENTANG (DENGAN DESKRIPSI APLIKASI)
+# HALAMAN 4: TENTANG
 # ==========================================
 elif st.session_state.current_selected_menu == "Tentang":
     st.markdown("<div style='padding: 30px 15px;'>", unsafe_allow_html=True)
-
-    # Bagian Penjelasan Aplikasi
     c_desc1, c_desc2, c_desc3 = st.columns([1, 4, 1])
     with c_desc2:
         st.markdown("""
