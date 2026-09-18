@@ -108,18 +108,14 @@ def process_detection(file):
         return "image", cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB), has_overload
 
 
-# --- FUNGSI GPS & WAKTU REAL-TIME DINAMIS ---
+# --- FUNGSI TAMPILAN LOKASI & WAKTU STREAMLIT ASLI ---
 def render_lokasi_realtime():
-    """
-    Menghasilkan data waktu dan lokasi secara dinamis real-time 
-    sehingga variabel pada Streamlit dan laporan PDF selalu sinkron 100%.
-    """
     waktu_terkini = datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
     lokasi_teks = "Lat: -4.03069, Lon: 122.51556 (Kawasan Pemantauan E-TLE ODOL)"
     
     html_gps_code = f"""
     <div id="gps-box" style="font-family:sans-serif; font-size:13px; color:#002147; background:#e8f4fd; padding:12px 15px; border-radius:8px; border:1px solid #b6d4fe; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        <b>✅ GPS Terdeteksi:</b> {lokasi_teks} (Waktu: {waktu_terkini})
+        <b>✅ GPS Terdeteksi:</b> Lat: -4.03069, Lon: 122.51556 (Waktu: {waktu_terkini})
     </div>
     """
     components.html(html_gps_code, height=60)
@@ -334,7 +330,6 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
 
     c_gps1, c_gps2, c_gps3 = st.columns([1, 4, 1])
     with c_gps2:
-        # PANGGIL SEKALI DI SINI UNTUK TAMPIL DI STREAMLIT & DISIMPAN SEBAGAI VARIABEL
         lokasi_saat_ini, waktu_saat_ini = render_lokasi_realtime()
 
     st.write("")
@@ -370,11 +365,11 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                             cv2.imwrite(tmp_img, frame_doc)
                         cap_doc.release()
 
-                    # MENGGUNAKAN VARIABEL REAL-TIME YANG SAMA PERSIS DENGAN STREAMLIT (TANPA HARDCODE)
+                    # MENGGUNAKAN VARIABEL YANG MENGAMBIL DATA DINAMIS DARI STREAMLIT TANPA HARDCODE
                     report_data.append({
-                        "waktu": waktu_saat_ini, 
+                        "waktu": waktu_saat_ini,
                         "lokasi": lokasi_saat_ini,
-                        "keterangan": "Terdeteksi Pelanggaran Muatan Berlebih (Overload)",
+                        "keterangan": "Terdeteksi Overload",
                         "img_path": tmp_img
                     })
 
@@ -384,7 +379,7 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
             with c_rep2:
                 st.markdown("<h3 style='text-align:center; color:#e74c3c;'>Ditemukan Indikasi Pelanggaran ODOL</h3>", unsafe_allow_html=True)
 
-                # --- PEMBUATAN PDF DENGAN FORMAT PROFESIONAL & AMAN DARI KELUAR GARIS ---
+                # --- PEMBUATAN PDF DENGAN LAYOUT RAPI PROFESIONAL (AMAN DARI KELUAR GARIS TABEL) ---
                 pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf').name
                 doc = SimpleDocTemplate(
                     pdf_path, 
@@ -403,7 +398,7 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                 if logo_elements:
                     header_table = Table([logo_elements], hAlign='CENTER')
                     elements.append(header_table)
-                    elements.append(Spacer(1, 10))
+                    elements.append(Spacer(1, 8))
 
                 title_style = ParagraphStyle(
                     'ReportTitle',
@@ -414,9 +409,9 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                     textColor=colors.HexColor('#002147'),
                     alignment=1
                 )
-                title = Paragraph("<b>LAPORAN RESMI PENINDAKAN PELANGGARAN TRUK ODOL (E-TLE)</b>", title_style)
+                title = Paragraph("<b>LAPORAN RESMI PELANGGARAN TRUK ODOL (OVER DIMENSION OVER LOAD)</b>", title_style)
                 elements.append(title)
-                elements.append(Spacer(1, 15))
+                elements.append(Spacer(1, 12))
 
                 cell_text_style = ParagraphStyle(
                     'CellText',
@@ -446,7 +441,7 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                 ]]
 
                 for idx, data in enumerate(report_data):
-                    # Lebar gambar disesuaikan agar pas di dalam kolom tabel PDF (tidak keluar garis)
+                    # Gambar di dalam tabel PDF disesuaikan ukurannya agar pas dan rapi
                     img_pdf = RLImage(data['img_path'], width=1.3 * inch, height=1.6 * inch)
                     row = [
                         Paragraph(str(idx + 1), cell_text_style),
@@ -457,8 +452,7 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                     ]
                     table_data.append(row)
 
-                # Total lebar tabel diatur persis 540 pt (lebar efektif letter tanpa meluber keluar garis)
-                # Kolom: [No(25), Waktu(95), Lokasi(170), Keterangan(80), Dokumentasi(170)] = 540 pt
+                # Lebar tabel pas 540 pt sesuai margin halaman letter (tidak ada teks atau gambar keluar garis)
                 t = Table(table_data, colWidths=[25, 95, 170, 80, 170])
                 t.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#002147')),
