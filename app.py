@@ -114,7 +114,7 @@ def render_lokasi_realtime():
     hari_list = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
     nama_hari = hari_list[waktu_sekarang.weekday()]
     waktu_terkini = f"{nama_hari}, {waktu_sekarang.strftime('%d/%m/%Y, %H:%M:%S')}"
-    lokasi_teks = f"Lat: -4.03069, Lon: 122.51556 (Waktu: {waktu_terkini})"
+    lokasi_teks = f"Lat: -4.03069, Lon: 122.51556 (Kawasan Pemantauan E-TLE ODOL)"
     
     html_gps_code = """
     <div id="gps-box" style="font-family:sans-serif; font-size:13px; color:#002147; background:#e8f4fd; padding:12px 15px; border-radius:8px; border:1px solid #b6d4fe; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
@@ -385,7 +385,10 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                             cv2.imwrite(tmp_img, frame_doc)
                         cap_doc.release()
 
+                    # MENGAMBIL DATA WAKTU DAN LOKASI REAL-TIME UNTUK LAPORAN PDF
                     report_data.append({
+                        "waktu": waktu_saat_ini,
+                        "lokasi": lokasi_saat_ini,
                         "keterangan": "Terdeteksi Overload",
                         "img_path": tmp_img
                     })
@@ -396,7 +399,7 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
             with c_rep2:
                 st.markdown("<h3 style='text-align:center; color:#e74c3c;'>Ditemukan Indikasi Pelanggaran ODOL</h3>", unsafe_allow_html=True)
 
-                # --- PEMBUATAN PDF DENGAN 3 KOLOM ---
+                # --- PEMBUATAN PDF DENGAN TABEL LENGKAP & PROPORSIONAL ---
                 pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf').name
                 doc = SimpleDocTemplate(
                     pdf_path, 
@@ -433,8 +436,8 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                     'CellText',
                     parent=styles['Normal'],
                     fontName='Helvetica',
-                    fontSize=9,
-                    leading=12,
+                    fontSize=8.5,
+                    leading=11,
                     textColor=colors.HexColor('#333333')
                 )
                 
@@ -442,39 +445,45 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                     'CellHeader',
                     parent=styles['Normal'],
                     fontName='Helvetica-Bold',
-                    fontSize=9,
-                    leading=12,
+                    fontSize=8.5,
+                    leading=11,
                     textColor=colors.whitesmoke,
                     alignment=1
                 )
 
                 table_data = [[
                     Paragraph("No", cell_header_style), 
+                    Paragraph("Tanggal & Waktu", cell_header_style), 
+                    Paragraph("Alamat / Lokasi Deteksi", cell_header_style), 
                     Paragraph("Keterangan", cell_header_style), 
                     Paragraph("Dokumentasi", cell_header_style)
                 ]]
 
                 for idx, data in enumerate(report_data):
-                    img_pdf = RLImage(data['img_path'], width=1.8 * inch, height=2.2 * inch)
+                    img_pdf = RLImage(data['img_path'], width=1.3 * inch, height=1.6 * inch)
                     row = [
                         Paragraph(str(idx + 1), cell_text_style),
+                        Paragraph(data['waktu'], cell_text_style),
+                        Paragraph(data['lokasi'], cell_text_style),
                         Paragraph(data['keterangan'], cell_text_style),
                         img_pdf
                     ]
                     table_data.append(row)
 
-                t = Table(table_data, colWidths=[40, 250, 262])
+                # Lebar total pas 552 pt (No:25, Waktu:95, Lokasi:175, Keterangan:80, Dokumentasi:177)
+                t = Table(table_data, colWidths=[25, 95, 175, 80, 177])
                 t.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#002147')),
                     ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
                     ('ALIGN', (0, 1), (0, -1), 'CENTER'),
-                    ('ALIGN', (1, 1), (1, -1), 'LEFT'),
-                    ('ALIGN', (2, 1), (2, -1), 'CENTER'),
+                    ('ALIGN', (1, 1), (2, -1), 'LEFT'),
+                    ('ALIGN', (3, 1), (3, -1), 'LEFT'),
+                    ('ALIGN', (4, 1), (4, -1), 'CENTER'),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('TOPPADDING', (0, 0), (-1, -1), 8),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 6),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                    ('TOPPADDING', (0, 0), (-1, -1), 6),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 5),
                     ('BACKGROUND', (0, 1), (-1, -1), colors.white),
                     ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
                 ]))
@@ -577,7 +586,7 @@ elif st.session_state.current_selected_menu == "Tentang":
         </div>
         """, unsafe_allow_html=True)
 
-        # --- FAQ 10 PERTANYAAN LENGKAP ---
+        # --- FAQ 10 PERTANYAAN (DIPERBAIKI) ---
         faq_html = """
         <div style="background-color: #ffffff; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,33,71,0.06); border: 1px solid #eef2f7; margin-bottom: 35px;">
             <h2 style="color: #002147; font-weight: 800; margin-top: 0; font-size: 20px; text-align: center; margin-bottom: 25px;">Panduan & FAQ 10 Pertanyaan Umum Aplikasi E-TLE ODOL</h2>
@@ -614,7 +623,7 @@ elif st.session_state.current_selected_menu == "Tentang":
 
             <div style="margin-bottom: 18px;">
                 <b style="color: #002147; font-size: 14px;">7. Apa saja informasi yang dimuat di dalam dokumen laporan PDF?</b>
-                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Laporan PDF resmi mencakup kop logo instansi, judul penindakan, nomor urut, keterangan pelanggaran, serta dokumentasi gambar bukti hasil deteksi AI.</p>
+                <p style="color: #555; font-size: 13px; margin: 4px 0 0 0; line-height: 1.5;">Laporan PDF resmi mencakup kop logo instansi, judul penindakan, nomor urut, tanggal & waktu real-time, alamat/lokasi deteksi, keterangan pelanggaran, serta dokumentasi gambar bukti hasil deteksi AI.</p>
             </div>
 
             <div style="margin-bottom: 18px;">
