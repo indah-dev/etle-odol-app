@@ -8,6 +8,8 @@ import glob
 import random
 import time
 import datetime
+import urllib.request
+import json
 from PIL import Image
 import pandas as pd
 import cv2
@@ -31,6 +33,23 @@ def get_base64(file):
             return base64.b64encode(f.read()).decode()
     except:
         return ""
+
+# FUNGSI LOKASI REAL-TIME (AUTO-DETECT VIA IP)
+def get_auto_location():
+    try:
+        url = "http://ip-api.com/json/"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=3) as response:
+            data = json.loads(response.read().decode())
+            if data.get('status') == 'success':
+                city = data.get('city', 'Kota Tidak Diketahui')
+                region = data.get('regionName', 'Wilayah Tidak Diketahui')
+                lat = data.get('lat', 0.0)
+                lon = data.get('lon', 0.0)
+                return f"{city}, {region}\n(Lat: {lat}, Long: {lon})"
+    except:
+        pass
+    return "Lokasi otomatis tidak tersedia. Silakan ketik lokasi manual."
 
 # Memuat aset gambar utama & logo
 img1 = get_base64("img1.png")
@@ -83,8 +102,14 @@ def process_detection(file):
             if not ret: break
             
             results = model_onnx.predict(frame, conf=0.25, verbose=False)
+            
+            # Cek logis klasifikasi spesifik "overload"
             if len(results[0].boxes) > 0:
-                has_overload = True
+                for c in results[0].boxes.cls:
+                    class_name = results[0].names[int(c)].lower()
+                    if "overload" in class_name:
+                        has_overload = True
+                        break
                 
             frame_plotted = results[0].plot()
             out.write(frame_plotted)
@@ -98,8 +123,14 @@ def process_detection(file):
         img_array = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
         results = model_onnx.predict(img_array, conf=0.25, verbose=False)
+        
+        # Cek logis klasifikasi spesifik "overload" untuk gambar
         if len(results[0].boxes) > 0:
-            has_overload = True
+            for c in results[0].boxes.cls:
+                class_name = results[0].names[int(c)].lower()
+                if "overload" in class_name:
+                    has_overload = True
+                    break
             
         res_plotted = results[0].plot()
         return "image", cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB), has_overload
@@ -331,7 +362,10 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
     
     c_up1, c_up2, c_up3 = st.columns([1, 4, 1])
     with c_up2:
-        # Ditambahkan accept_multiple_files=True
+        # Fitur Lokasi Real-Time dengan opsi edit manual agar fleksibel bagi user dan juri
+        lokasi_otomatis = get_auto_location()
+        lokasi_final = st.text_area("📍 Titik Lokasi Pos Pantau (Auto-Detect Jaringan, sesuaikan jika Anda menggunakan Cloud VPN):", value=lokasi_otomatis, height=68)
+        st.write("")
         uploaded_files = st.file_uploader("Pilih file foto/video", type=['jpg', 'jpeg', 'png', 'webp', 'mp4', 'avi', 'mov', 'mpeg4'], accept_multiple_files=True)
         
     if uploaded_files: # Jika list tidak kosong
@@ -350,24 +384,21 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                             st.download_button("📥 Unduh Video Hasil Deteksi", f, file_name=f"deteksi_{uploaded_file.name}", mime="video/webm", key=f"dl_vid_{file_idx}")
                     else:
                         st.image(res_file, use_container_width=True)
-                        # Mengubah RGB kembali ke BGR untuk menyimpan byte gambar
                         is_success, buffer = cv2.imencode(".jpg", cv2.cvtColor(res_file, cv2.COLOR_RGB2BGR))
                         img_bytes = buffer.tobytes()
                         
-                        # Tombol Download per gambar
                         st.download_button("📥 Unduh Gambar Ini", img_bytes, file_name=f"deteksi_{uploaded_file.name}", mime="image/jpeg", key=f"dl_img_{file_idx}")
                         
-                        # Jika ada overload terdeteksi, masukkan ke data laporan
+                        # HANYA masukkan gambar ke dalam laporan JIKA benar-benar terdeteksi kelas "overload"
                         if has_overload:
                             tmp_img = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg').name
                             cv2.imwrite(tmp_img, cv2.cvtColor(res_file, cv2.COLOR_RGB2BGR))
                             
                             waktu_sekarang = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-                            lokasi_dummy = "Jalan Trans Sulawesi, Kendari\n(Lat: -3.99, Lng: 122.51)"
                             
                             report_data.append({
                                 "waktu": waktu_sekarang,
-                                "lokasi": lokasi_dummy,
+                                "lokasi": lokasi_final, # Mengambil dari text_area realtime
                                 "keterangan": "Terdeteksi Overload",
                                 "img_path": tmp_img
                             })
@@ -385,21 +416,16 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                 elements = []
                 styles = getSampleStyleSheet()
                 
-                # Setup header logo dari base64 ke temp file untuk ReportLab
-                tmp_logo1 = tempfile.NamedTemporaryFile(delete=False, suffix='.png').name
-                tmp_logo2 = tempfile.NamedTemporaryFile(delete=False, suffix='.png').name
-                if logo_polri:
-                    with open(tmp_logo1, "wb") as fh: fh.write(base64.b64decode(logo_polri))
-                if logo_korlantas:
-                    with open(tmp_logo2, "wb") as fh: fh.write(base64.b64decode(logo_korlantas))
+                # Setup header logo dengan MEMBACA FILE LANGSUNG dari folder assets
+                logo_elements = []
+                if os.path.exists("assets/logo_polri.png"):
+                    logo_elements.append(RLImage("assets/logo_polri.png", width=50, height=50))
+                if os.path.exists("assets/logo_korlantas.png"):
+                    logo_elements.append(RLImage("assets/logo_korlantas.png", width=50, height=50))
                 
-                # Tabel Header (Logo)
-                try:
-                    header_data = [[RLImage(tmp_logo1, width=50, height=50), RLImage(tmp_logo2, width=50, height=50)]]
-                    header_table = Table(header_data, colWidths=[60, 60], hAlign='CENTER')
+                if logo_elements:
+                    header_table = Table([logo_elements], hAlign='CENTER')
                     elements.append(header_table)
-                except:
-                    pass # Bypass jika logo tidak terbaca dengan baik
                     
                 elements.append(Spacer(1, 12))
                 title = Paragraph("<para align=center><b>LAPORAN PELANGGARAN TRUK ODOL (OVER DIMENSION OVER LOAD)</b></para>", styles['Title'])
@@ -415,12 +441,15 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
                     row = [str(idx + 1), data['waktu'], data['lokasi'], data['keterangan'], img_pdf]
                     table_data.append(row)
                 
-                # Styling Tabel PDF
+                # Styling Tabel PDF (Diperbaiki menjadi rata kiri untuk kolom isi)
                 t = Table(table_data, colWidths=[30, 95, 130, 90, 130])
                 t.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#002147')),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('ALIGN', (0, 0), (-1, 0), 'CENTER'), # Header kolom rata tengah
+                    ('ALIGN', (0, 1), (0, -1), 'CENTER'), # Nomor urut rata tengah
+                    ('ALIGN', (1, 1), (3, -1), 'LEFT'),   # Kolom Waktu, Lokasi, dan Keterangan RATA KIRI
+                    ('ALIGN', (4, 1), (4, -1), 'CENTER'), # Gambar dokumentasi rata tengah
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                     ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
@@ -444,7 +473,7 @@ elif st.session_state.current_selected_menu == "Deteksi Foto & Video":
 # ==========================================
 # HALAMAN 3: CCTV REAL-TIME
 # ==========================================
-elif st.session_state.current_selected_menu == "CCTV Real-Time":
+elif st.session_state.current_selected_menu == "C CCTV Real-Time":
     st.markdown(f"""
         <div class="hero-deteksi">
             <img src="data:image/jpeg;base64,{img4}">
@@ -486,10 +515,18 @@ elif st.session_state.current_selected_menu == "CCTV Real-Time":
                 frame_rgb = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
                 frame_placeholder.image(frame_rgb, channels="RGB", use_container_width=True)
                 
+                # Update logika overload untuk CCTV juga
+                has_overload_cctv = False
                 if len(results[0].boxes) > 0:
+                    for c in results[0].boxes.cls:
+                        if "overload" in results[0].names[int(c)].lower():
+                            has_overload_cctv = True
+                            break
+                            
+                if has_overload_cctv:
                     temp_snap = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg').name
                     cv2.imwrite(temp_snap, annotated_frame)
-                    recap_data.append({"waktu": time.strftime("%H:%M:%S"), "path": temp_snap, "status": "Terdeteksi"})
+                    recap_data.append({"waktu": time.strftime("%H:%M:%S"), "path": temp_snap, "status": "Terdeteksi Overload"})
                 time.sleep(0.03)
             cap.release()
         else:
